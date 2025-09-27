@@ -92,6 +92,10 @@ class GetIssueInput(BaseModel):
         description="Issue key (e.g., 'PROJ-001')",
         pattern=r"^[A-Z]+-\d+-\d{3}$"
     )
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project scope (auto-resolved if omitted)"
+    )
     include_tasks: bool = Field(
         default=True,
         description="Include associated tasks in response"
@@ -337,6 +341,25 @@ class UpdateStatusInput(BaseModel):
         description="Required if status is 'blocked' - reason for blocking"
     )
 
+class DeleteIssueInput(BaseModel):
+    """Input for pm_delete_issue tool"""
+    issue_key: str = Field(
+        description="Issue key to delete",
+        pattern=r"^[A-Z]+-\d+-\d{3}$"
+    )
+    confirm: bool = Field(
+        default=False,
+        description="Must be true to confirm deletion - safety check"
+    )
+    cascade: bool = Field(
+        default=True,
+        description="Delete all associated tasks and worklogs (default true)"
+    )
+    reason: Optional[str] = Field(
+        default=None,
+        description="Reason for deletion (for audit trail)"
+    )
+
 class CreateTaskInput(BaseModel):
     """Input for pm_create_task tool"""
     issue_key: str = Field(
@@ -364,9 +387,35 @@ class CreateTaskInput(BaseModel):
         default=None,
         description="Time estimate for the task (e.g., '2h', '1d')"
     )
+    details: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Task metadata including checklist and notes"
+    )
     status: Literal["todo", "doing", "blocked", "review", "done"] = Field(
         default="todo",
         description="Initial task status"
+    )
+
+class UpdateTaskInput(BaseModel):
+    """Input for pm_update_task tool"""
+    task_id: str = Field(
+        description="Task ID (e.g., PROJ-001-T1)"
+    )
+    title: Optional[str] = Field(
+        default=None,
+        description="New task title"
+    )
+    status: Optional[str] = Field(
+        default=None,
+        description="New status: todo|doing|blocked|review|done"
+    )
+    assignee: Optional[str] = Field(
+        default=None,
+        description="New assignee"
+    )
+    details: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Updated task metadata"
     )
 
 # =============== Git Integration Models ===============
@@ -724,66 +773,6 @@ class SuggestNextWorkInput(BaseModel):
         description="Avoid high-complexity issues"
     )
 
-# =============== Missing Core Models ===============
-
-class EstimateIssueInput(BaseModel):
-    """Input for pm_estimate tool"""
-    issue_key: str = Field(
-        description="Issue key to estimate",
-        pattern=r"^[A-Z]+-\d+-\d{3}$"
-    )
-    effort: str = Field(
-        description="Effort estimate (e.g., '2-3 days', '1 week')"
-    )
-    complexity: Optional[str] = Field(
-        default="Medium",
-        description="Low|Medium|High|Very High"
-    )
-    reasoning: Optional[str] = Field(
-        default=None,
-        description="Detailed reasoning for estimate including assumptions"
-    )
-
-class CreateTaskInput(BaseModel):
-    """Input for pm_create_task tool"""
-    issue_key: str = Field(
-        description="Parent issue key",
-        pattern=r"^[A-Z]+-\d+-\d{3}$"
-    )
-    title: str = Field(
-        description="Task title",
-        min_length=5
-    )
-    assignee: Optional[str] = Field(
-        default=None,
-        description="Task assignee"
-    )
-    details: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Additional task metadata"
-    )
-
-class UpdateTaskInput(BaseModel):
-    """Input for pm_update_task tool"""
-    task_id: str = Field(
-        description="Task ID (e.g., PROJ-001-T1)"
-    )
-    title: Optional[str] = Field(
-        default=None,
-        description="New task title"
-    )
-    status: Optional[str] = Field(
-        default=None,
-        description="New status: todo|doing|blocked|review|done"
-    )
-    assignee: Optional[str] = Field(
-        default=None,
-        description="New assignee"
-    )
-    details: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Updated task metadata"
-    )
 
 # =============== Error/Result Models ===============
 

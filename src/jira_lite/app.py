@@ -53,6 +53,17 @@ def create_app(config_class=Config):
         except ValueError:
             abort(404)
 
+    @app.route('/<project_id>/kanban')
+    def kanban(project_id):
+        """Kanban board view with drag-and-drop interface"""
+        try:
+            dashboard_data = pm_service.get_project_dashboard(project_id)
+            return render_template('kanban.html',
+                                 project=dashboard_data['project'],
+                                 issues=dashboard_data['issues'])
+        except ValueError:
+            abort(404)
+
     @app.route('/<project_id>/issues/<issue_key>')
     def issue_detail(project_id, issue_key):
         """Detailed issue view with full LLM-generated content"""

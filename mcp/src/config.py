@@ -21,8 +21,8 @@ class Config:
             cls._database_path = Path(env_path)
             return cls._database_path
 
-        # Try default location
-        default_path = Path.home() / ".julius_mcp" / "jira_lite" / "jira.db"
+        # Try default location - align with repo data path
+        default_path = Path(__file__).parent.parent.parent / "data" / "jira_lite.db"
         if default_path.exists():
             cls._database_path = default_path
             return cls._database_path
@@ -68,7 +68,8 @@ class Config:
     # Security settings
     ALLOWED_GIT_COMMANDS = {
         "status", "log", "branch", "checkout", "add", "commit",
-        "push", "pull", "fetch", "merge", "stash", "diff", "show"
+        "push", "pull", "fetch", "merge", "stash", "diff", "show",
+        "init", "config", "rev-parse", "remote"
     }
 
     @classmethod

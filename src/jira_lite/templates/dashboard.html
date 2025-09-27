@@ -8,24 +8,27 @@
     <div class="mb-8">
         <div class="sm:flex sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">{{ project.project_slug }}</h1>
-                <p class="mt-2 text-sm text-gray-600">{{ project.absolute_path }}</p>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ project.project_slug }}</h1>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ project.absolute_path }}</p>
                 <div class="mt-2 flex items-center space-x-4">
-                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                    <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:text-green-300 border border-green-300 dark:border-green-800">
                         {{ project.project_id[:8] }}...
                     </span>
                     {% if project.submodules %}
-                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                    <span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
                         {{ project.submodules|length }} submodules
                     </span>
                     {% endif %}
                 </div>
             </div>
             <div class="mt-4 sm:mt-0 space-x-3">
-                <a href="/{{ project.project_id }}/issues/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <a href="/{{ project.project_id }}/kanban" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors">
+                    📋 Kanban Board
+                </a>
+                <a href="/{{ project.project_id }}/issues/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-primary hover:bg-blue-600 transition-colors">
                     ➕ Create Issue
                 </a>
-                <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors">
                     ← All Projects
                 </a>
             </div>
@@ -39,74 +42,148 @@
             {% if status_counts.update({issue.status: status_counts.get(issue.status, 0) + 1}) %}{% endif %}
         {% endfor %}
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                        <div class="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
                             <span class="text-white text-sm font-medium">📋</span>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">Total Issues</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ issues|length }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Issues</dt>
+                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ issues|length }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
-                            <span class="text-white text-sm font-medium">🔄</span>
+                        <div class="w-8 h-8 bg-yellow-600 rounded-md flex items-center justify-center">
+                            <span class="text-white text-sm font-medium">⚡</span>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">In Progress</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ status_counts.get('in_progress', 0) }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">In Progress</dt>
+                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ status_counts.get('in_progress', 0) }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                        <div class="w-8 h-8 bg-purple-600 rounded-md flex items-center justify-center">
                             <span class="text-white text-sm font-medium">👀</span>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">In Review</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ status_counts.get('review', 0) }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">In Review</dt>
+                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ status_counts.get('review', 0) }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                        <div class="w-8 h-8 bg-green-600 rounded-md flex items-center justify-center">
                             <span class="text-white text-sm font-medium">✅</span>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">Done</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ status_counts.get('done', 0) }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Done</dt>
+                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ status_counts.get('done', 0) }}</dd>
                         </dl>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Priority and Complexity Breakdown -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-8">
+        <!-- Priority Breakdown -->
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Priority Breakdown</h3>
+                {% set priority_counts = {} %}
+                {% for issue in issues %}
+                    {% if priority_counts.update({issue.priority: priority_counts.get(issue.priority, 0) + 1}) %}{% endif %}
+                {% endfor %}
+                <div class="space-y-2">
+                    {% for priority in ['P1', 'P2', 'P3', 'P4', 'P5'] %}
+                    {% if priority_counts.get(priority, 0) > 0 %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium
+                            {% if priority == 'P1' %}text-red-400{% endif %}
+                            {% if priority == 'P2' %}text-orange-400{% endif %}
+                            {% if priority == 'P3' %}text-yellow-400{% endif %}
+                            {% if priority == 'P4' %}text-blue-400{% endif %}
+                            {% if priority == 'P5' %}text-gray-400{% endif %}">
+                            {{ priority }} - {% if priority == 'P1' %}Critical{% elif priority == 'P2' %}High{% elif priority == 'P3' %}Medium{% elif priority == 'P4' %}Low{% else %}Nice-to-have{% endif %}
+                        </span>
+                        <div class="flex items-center">
+                            <span class="text-sm text-gray-700 dark:text-gray-200 mr-2">{{ priority_counts.get(priority, 0) }}</span>
+                            <div class="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                <div class="h-2.5 rounded-full
+                                    {% if priority == 'P1' %}bg-red-600{% endif %}
+                                    {% if priority == 'P2' %}bg-orange-600{% endif %}
+                                    {% if priority == 'P3' %}bg-yellow-600{% endif %}
+                                    {% if priority == 'P4' %}bg-blue-600{% endif %}
+                                    {% if priority == 'P5' %}bg-gray-600{% endif %}"
+                                    style="width: {{ (priority_counts.get(priority, 0) / issues|length * 100) if issues else 0 }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Complexity Breakdown -->
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Complexity Distribution</h3>
+                {% set complexity_counts = {} %}
+                {% for issue in issues %}
+                    {% set comp = issue.complexity or 'Medium' %}
+                    {% if complexity_counts.update({comp: complexity_counts.get(comp, 0) + 1}) %}{% endif %}
+                {% endfor %}
+                <div class="space-y-2">
+                    {% for complexity in ['Low', 'Medium', 'High', 'Very High'] %}
+                    {% if complexity_counts.get(complexity, 0) > 0 %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ complexity }}</span>
+                        <div class="flex items-center">
+                            <span class="text-sm text-gray-700 dark:text-gray-200 mr-2">{{ complexity_counts.get(complexity, 0) }}</span>
+                            <div class="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                <div class="h-2.5 rounded-full
+                                    {% if complexity == 'Low' %}bg-green-500{% endif %}
+                                    {% if complexity == 'Medium' %}bg-yellow-500{% endif %}
+                                    {% if complexity == 'High' %}bg-orange-500{% endif %}
+                                    {% if complexity == 'Very High' %}bg-red-500{% endif %}"
+                                    style="width: {{ (complexity_counts.get(complexity, 0) / issues|length * 100) if issues else 0 }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -115,7 +192,7 @@
     <!-- Issues by Module -->
     {% if project.submodules %}
     <div class="mb-8">
-        <h2 class="text-lg font-medium text-gray-900 mb-4">Issues by Module</h2>
+        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Issues by Module</h2>
         <div class="grid gap-6 lg:grid-cols-2">
             {% for submodule in project.submodules %}
             {% set module_issues = [] %}
@@ -124,50 +201,50 @@
                     {% set _ = module_issues.append(issue) %}
                 {% endif %}
             {% endfor %}
-            <div class="bg-white shadow rounded-lg">
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-3">{{ submodule.name }}</h3>
-                    <div class="text-sm text-gray-500 mb-4">{{ submodule.path }}</div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">{{ submodule.name }}</h3>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ submodule.path }}</div>
 
                     {% if module_issues %}
                     <div class="space-y-3">
                         {% for issue in module_issues[:3] %}
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-bg rounded-lg">
                             <div class="flex items-center space-x-3">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                    {% if issue.type == 'feature' %}bg-blue-100 text-blue-800{% endif %}
-                                    {% if issue.type == 'bug' %}bg-red-100 text-red-800{% endif %}
-                                    {% if issue.type == 'refactor' %}bg-purple-100 text-purple-800{% endif %}
-                                    {% if issue.type == 'chore' %}bg-gray-100 text-gray-800{% endif %}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium
+                                    {% if issue.type == 'feature' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300{% endif %}
+                                    {% if issue.type == 'bug' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300{% endif %}
+                                    {% if issue.type == 'refactor' %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300{% endif %}
+                                    {% if issue.type == 'chore' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300{% endif %}">
                                     {{ issue.type }}
                                 </span>
                                 <div>
                                     <div class="text-sm font-medium">
-                                        <a href="/{{ project.project_id }}/issues/{{ issue.key }}" class="text-blue-600 hover:text-blue-800">
+                                        <a href="/{{ project.project_id }}/issues/{{ issue.key }}" class="text-primary hover:text-blue-400 transition-colors">
                                             {{ issue.title }}
                                         </a>
                                     </div>
-                                    <div class="text-xs text-gray-500">{{ issue.key }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ issue.key }}</div>
                                 </div>
                             </div>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                {% if issue.status == 'proposed' %}bg-gray-100 text-gray-800{% endif %}
-                                {% if issue.status == 'in_progress' %}bg-yellow-100 text-yellow-800{% endif %}
-                                {% if issue.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
-                                {% if issue.status == 'done' %}bg-green-100 text-green-800{% endif %}
-                                {% if issue.status == 'canceled' %}bg-red-100 text-red-800{% endif %}">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium
+                                {% if issue.status == 'proposed' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300{% endif %}
+                                {% if issue.status == 'in_progress' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300{% endif %}
+                                {% if issue.status == 'review' %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300{% endif %}
+                                {% if issue.status == 'done' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300{% endif %}
+                                {% if issue.status == 'canceled' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300{% endif %}">
                                 {{ issue.status.replace('_', ' ') }}
                             </span>
                         </div>
                         {% endfor %}
                         {% if module_issues|length > 3 %}
-                        <div class="text-center text-sm text-gray-500">
+                        <div class="text-center text-sm text-gray-600 dark:text-gray-500">
                             +{{ module_issues|length - 3 }} more issues
                         </div>
                         {% endif %}
                     </div>
                     {% else %}
-                    <div class="text-center text-sm text-gray-500 py-4">
+                    <div class="text-center text-sm text-gray-600 dark:text-gray-500 py-4">
                         No issues in this module
                     </div>
                     {% endif %}
@@ -179,71 +256,128 @@
     {% endif %}
 
     <!-- All Issues Table -->
-    <div class="bg-white shadow rounded-lg">
+    <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">All Issues</h2>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">All Issues</h2>
+
+                <!-- Filters -->
+                <div class="mt-4 sm:mt-0 flex flex-wrap gap-2">
+                    <select id="statusFilter" class="px-3 py-1.5 text-sm border border-gray-300 dark:border-dark-border rounded-md bg-white dark:bg-dark-bg text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="all">All Status</option>
+                        <option value="proposed">Proposed</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="review">Review</option>
+                        <option value="done">Done</option>
+                        <option value="blocked">Blocked</option>
+                        <option value="canceled">Canceled</option>
+                    </select>
+
+                    <select id="priorityFilter" class="px-3 py-1.5 text-sm border border-gray-300 dark:border-dark-border rounded-md bg-white dark:bg-dark-bg text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="all">All Priority</option>
+                        <option value="P1">P1 - Critical</option>
+                        <option value="P2">P2 - High</option>
+                        <option value="P3">P3 - Medium</option>
+                        <option value="P4">P4 - Low</option>
+                        <option value="P5">P5 - Nice-to-have</option>
+                    </select>
+
+                    <select id="moduleFilter" class="px-3 py-1.5 text-sm border border-gray-300 dark:border-dark-border rounded-md bg-white dark:bg-dark-bg text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="all">All Modules</option>
+                        {% set unique_modules = [] %}
+                        {% for issue in issues %}
+                            {% if issue.module and issue.module not in unique_modules %}
+                                {% if unique_modules.append(issue.module) %}{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for module in unique_modules|sort %}
+                        <option value="{{ module }}">{{ module }}</option>
+                        {% endfor %}
+                        <option value="N/A">No Module</option>
+                    </select>
+
+                    <button id="clearFilters" class="px-3 py-1.5 text-sm border border-gray-300 dark:border-dark-border rounded-md bg-gray-100 dark:bg-dark-surface text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors">
+                        Clear
+                    </button>
+                </div>
+            </div>
 
             {% if issues %}
             <div class="overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+                    <thead class="bg-gray-50 dark:bg-dark-bg">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Issue
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Status
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Priority
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Module
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Effort
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Updated
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200 dark:divide-dark-border">
                         {% for issue in issues %}
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors issue-row" data-status="{{ issue.status }}" data-priority="{{ issue.priority }}" data-module="{{ issue.module or 'N/A' }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-3
-                                        {% if issue.type == 'feature' %}bg-blue-100 text-blue-800{% endif %}
-                                        {% if issue.type == 'bug' %}bg-red-100 text-red-800{% endif %}
-                                        {% if issue.type == 'refactor' %}bg-purple-100 text-purple-800{% endif %}
-                                        {% if issue.type == 'chore' %}bg-gray-100 text-gray-800{% endif %}">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium mr-3
+                                        {% if issue.type == 'feature' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300{% endif %}
+                                        {% if issue.type == 'bug' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300{% endif %}
+                                        {% if issue.type == 'refactor' %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300{% endif %}
+                                        {% if issue.type == 'chore' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300{% endif %}
+                                        {% if issue.type == 'spike' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300{% endif %}">
                                         {{ issue.type }}
                                     </span>
                                     <div>
                                         <div class="text-sm font-medium">
-                                            <a href="/{{ project.project_id }}/issues/{{ issue.key }}" class="text-blue-600 hover:text-blue-800">
+                                            <a href="/{{ project.project_id }}/issues/{{ issue.key }}" class="text-primary hover:text-blue-400 transition-colors">
                                                 {{ issue.title }}
                                             </a>
                                         </div>
-                                        <div class="text-sm text-gray-500">{{ issue.key }}</div>
+                                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ issue.key }}</div>
                                     </div>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                    {% if issue.status == 'proposed' %}bg-gray-100 text-gray-800{% endif %}
-                                    {% if issue.status == 'in_progress' %}bg-yellow-100 text-yellow-800{% endif %}
-                                    {% if issue.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
-                                    {% if issue.status == 'done' %}bg-green-100 text-green-800{% endif %}
-                                    {% if issue.status == 'canceled' %}bg-red-100 text-red-800{% endif %}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium
+                                    {% if issue.status == 'proposed' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300{% endif %}
+                                    {% if issue.status == 'in_progress' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300{% endif %}
+                                    {% if issue.status == 'review' %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300{% endif %}
+                                    {% if issue.status == 'done' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300{% endif %}
+                                    {% if issue.status == 'canceled' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300{% endif %}
+                                    {% if issue.status == 'blocked' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300{% endif %}">
                                     {{ issue.status.replace('_', ' ') }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <span class="font-medium">{{ issue.priority }}</span>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                    {% if issue.priority == 'P1' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300{% endif %}
+                                    {% if issue.priority == 'P2' %}bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300{% endif %}
+                                    {% if issue.priority == 'P3' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300{% endif %}
+                                    {% if issue.priority == 'P4' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300{% endif %}
+                                    {% if issue.priority == 'P5' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300{% endif %}">
+                                    {{ issue.priority }}
+                                </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                 {{ issue.module or 'N/A' }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                {{ issue.estimated_effort or '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                                 {{ issue.updated_utc | format_datetime('%m/%d %H:%M') }}
                             </td>
                         </tr>
@@ -254,11 +388,98 @@
             {% else %}
             <div class="text-center py-8">
                 <div class="text-gray-400 text-lg mb-2">📝</div>
-                <h3 class="text-sm font-medium text-gray-900">No issues yet</h3>
-                <p class="text-sm text-gray-500 mt-1">Issues will appear here when created via the PM MCP tools.</p>
+                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-200">No issues yet</h3>
+                <p class="text-sm text-gray-400 mt-1">Issues will appear here when created via the PM MCP tools.</p>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+<script>
+// Issue filtering functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('statusFilter');
+    const priorityFilter = document.getElementById('priorityFilter');
+    const moduleFilter = document.getElementById('moduleFilter');
+    const clearButton = document.getElementById('clearFilters');
+    const issueRows = document.querySelectorAll('.issue-row');
+
+    function filterIssues() {
+        const statusValue = statusFilter.value;
+        const priorityValue = priorityFilter.value;
+        const moduleValue = moduleFilter.value;
+
+        let visibleCount = 0;
+
+        issueRows.forEach(row => {
+            const rowStatus = row.dataset.status;
+            const rowPriority = row.dataset.priority;
+            const rowModule = row.dataset.module;
+
+            const statusMatch = statusValue === 'all' || rowStatus === statusValue;
+            const priorityMatch = priorityValue === 'all' || rowPriority === priorityValue;
+            const moduleMatch = moduleValue === 'all' || rowModule === moduleValue;
+
+            if (statusMatch && priorityMatch && moduleMatch) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Show/hide "no results" message
+        const tableBody = document.querySelector('tbody');
+        const existingNoResults = document.getElementById('noFilterResults');
+
+        if (visibleCount === 0) {
+            if (!existingNoResults) {
+                const noResultsRow = document.createElement('tr');
+                noResultsRow.id = 'noFilterResults';
+                noResultsRow.innerHTML = `
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                        No issues match the current filters
+                    </td>
+                `;
+                tableBody.appendChild(noResultsRow);
+            }
+        } else {
+            if (existingNoResults) {
+                existingNoResults.remove();
+            }
+        }
+
+        // Save filter state to localStorage
+        localStorage.setItem('dashboardFilters', JSON.stringify({
+            status: statusValue,
+            priority: priorityValue,
+            module: moduleValue
+        }));
+    }
+
+    function clearFilters() {
+        statusFilter.value = 'all';
+        priorityFilter.value = 'all';
+        moduleFilter.value = 'all';
+        filterIssues();
+    }
+
+    // Load saved filters
+    const savedFilters = localStorage.getItem('dashboardFilters');
+    if (savedFilters) {
+        const filters = JSON.parse(savedFilters);
+        if (filters.status) statusFilter.value = filters.status;
+        if (filters.priority) priorityFilter.value = filters.priority;
+        if (filters.module) moduleFilter.value = filters.module;
+        filterIssues();
+    }
+
+    // Event listeners
+    statusFilter.addEventListener('change', filterIssues);
+    priorityFilter.addEventListener('change', filterIssues);
+    moduleFilter.addEventListener('change', filterIssues);
+    clearButton.addEventListener('click', clearFilters);
+});
+</script>
 {% endblock %}

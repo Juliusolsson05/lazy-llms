@@ -11,7 +11,7 @@ Add this to your shell profile for permanent configuration:
 export PM_DATABASE_PATH="/Users/juliusolsson/Desktop/Development/lazy-llms/data/jira_lite.db"
 
 ## 3. Web UI Access
-- Dashboard: http://127.0.0.1:1929
+- Dashboard: http://127.0.0.1:1928
 - Create issues, manage projects, view analytics
 
 ## 4. Available MCP Tools

@@ -6,6 +6,8 @@ Production-ready implementation with all fixes applied
 import os
 import sys
 import asyncio
+import json
+import traceback
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
@@ -20,21 +22,10 @@ except ImportError:
     sys.exit(1)
 
 from config import Config
-from database import PMDatabase, DatabaseSession
+from database import PMDatabase, DatabaseSession, _get_issue_field_json, Task, WorkLog
 from models import *
 from utils import *
 from git_integration import git_status, git_current_branch, git_push_current
-
-# --- Compatibility shim (migrate away over time) ----------------------------
-def standard_response(
-    success: bool,
-    message: str,
-    data: Optional[Dict[str, Any]] = None,
-    hints: Optional[List[str]] = None,
-) -> Dict[str, Any]:
-    """Compatibility shim for legacy call sites using standard_response()."""
-    return ok(message, data, hints) if success else err(message, data, hints)
-# ---------------------------------------------------------------------------
 
 # Initialize MCP server
 mcp = FastMCP("pm-server")
@@ -102,7 +93,8 @@ def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
     This tool provides the LLM with understanding of available commands,
     workflows, and best practices for project management.
     """
-    docs = {
+    try:
+        docs = {
         "overview": """# LLM-Native Project Management System
 
 This PM system is designed for LLM agents as first-class citizens, providing:
@@ -248,16 +240,25 @@ pm_log_work --activity review
 - `pm_blocked_issues`: Find systematic blockers"""
     }
 
-    section = input.section or "overview"
-    content = docs.get(section, docs["overview"])
+        section = input.section or "overview"
+        content = docs.get(section, docs["overview"])
 
-    return ok(f"Documentation: {section}", {
-        "content": content,
-        "section": section,
-        "available_sections": list(docs.keys())
-    }, hints=["Use --section parameter to get specific documentation sections"])
+        return ok(f"Documentation: {section}", {
+            "content": content,
+            "section": section,
+            "available_sections": list(docs.keys())
+        }, hints=["Use --section parameter to get specific documentation sections"])
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to get documentation: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Try calling without parameters for overview", "Valid sections: overview, commands, workflow, troubleshooting"]
+        )
 
 @mcp.tool()
+@strict_project_scope
 def pm_status(input: PMStatusInput) -> Dict[str, Any]:
     """
     Get comprehensive project status including issue counts, velocity metrics,
@@ -284,9 +285,16 @@ def pm_status(input: PMStatusInput) -> Dict[str, Any]:
             }
             return ok("Project status", data)
     except Exception as e:
-        return err(f"Failed to get project status: {type(e).__name__}", {"trace": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to get project status: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check database connectivity", "Verify project exists"]
+        )
 
 @mcp.tool()
+@strict_project_scope
 def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
     """
     List and filter project issues with comprehensive details.
@@ -303,9 +311,16 @@ def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
             return ok(f"Found {len(issues)} issues",
                       {"issues": [i.to_rich_dict() for i in issues], "count": len(issues)})
     except Exception as e:
-        return err(f"Failed to list issues: {type(e).__name__}", {"trace": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to list issues: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check database connectivity", "Verify project exists"]
+        )
 
 @mcp.tool()
+@strict_project_scope
 def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
     """
     Get comprehensive issue details including specifications, tasks, and work history.
@@ -338,18 +353,29 @@ def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
                 result_data["project"] = issue_data['project']
 
             else:
-                # Get just the issue
-                issue = PMDatabase.get_issue(input.issue_key)
-                if not issue:
+                # Get just the issue - scoped to current project
+                issue = PMDatabase.get_issue_scoped(input.project_id, input.issue_key)
+                if issue is None:
                     return standard_response(
                         success=False,
-                        message=f"Issue {input.issue_key} not found"
+                        message=f"Issue {input.issue_key} not found in current project"
                     )
-                result_data = {"issue": issue}
+                result_data = {"issue": PMDatabase._issue_to_dict(issue)}
 
             # Add dependency analysis if requested
             if input.include_dependencies:
-                all_issues = PMDatabase.get_issues(project_id=result_data['issue']['project_id'], limit=1000)
+                # Get project_id - it could be in different places depending on the path taken
+                issue_proj_id = None
+                # First try direct project_id on issue
+                if 'issue' in result_data:
+                    issue_proj_id = result_data['issue'].get('project_id')
+                # Then try separate project object
+                if not issue_proj_id and 'project' in result_data:
+                    issue_proj_id = result_data['project'].get('project_id')
+                # Finally fall back to current scope
+                if not issue_proj_id:
+                    issue_proj_id = _require_project_id(None)
+                all_issues = PMDatabase.get_issues(project_id=issue_proj_id, limit=1000)
                 deps = analyze_dependencies(result_data['issue'], all_issues)
                 result_data["dependencies"] = deps
 
@@ -381,10 +407,14 @@ def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
                 hints=hints
             )
 
+    except ScopeError as se:
+        return err(str(se))
     except Exception as e:
+        tb = traceback.format_exc()
         return standard_response(
             success=False,
             message=f"Failed to get issue: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
             hints=["Check database connectivity", "Verify issue key format"]
         )
 
@@ -445,11 +475,18 @@ def pm_list_projects() -> Dict[str, Any]:
                     "count": len(projects)}
         return ok(f"Found {len(projects)} projects", data)
     except Exception as e:
-        return err(f"Failed to list projects: {type(e).__name__}", {"trace": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to list projects: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check database connectivity", "Ensure database is initialized"]
+        )
 
 # =============== Planning Tools ===============
 
 @mcp.tool()
+@strict_project_scope
 def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
     """
     Create a comprehensive issue with rich LLM-generated documentation.
@@ -464,9 +501,16 @@ def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
             return ok("Issue created", {"issue": issue.to_rich_dict()},
                       hints=[f"Start work: pm_start_work --issue-key {issue.key}"])
     except Exception as e:
-        return err(f"Failed to create issue: {type(e).__name__}", {"trace": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to create issue: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check database connectivity", "Verify all required fields are provided"]
+        )
 
 @mcp.tool()
+@strict_project_scope
 def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
     """
     Start work on an issue - updates status, optionally creates branch.
@@ -474,17 +518,21 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
     """
     try:
         with DatabaseSession():
-            issue = PMDatabase.get_issue(input.issue_key)
-            if not issue:
+            # Get issue scoped to current project
+            # The decorator adds project_id, but we need to get it properly
+            project_id = _require_project_id(None)
+            issue = PMDatabase.get_issue_scoped(project_id, input.issue_key)
+            if issue is None:
                 return standard_response(
                     success=False,
-                    message=f"Issue {input.issue_key} not found"
+                    message=f"Issue {input.issue_key} not found in current project"
                 )
+            issue_dict = PMDatabase._issue_to_dict(issue)
 
             # Validate dependencies if requested
             if input.validate_dependencies:
-                all_issues = PMDatabase.get_issues(project_id=issue['project_id'], limit=1000)
-                deps = analyze_dependencies(issue, all_issues)
+                all_issues = PMDatabase.get_issues(project_id=issue_dict['project_id'], limit=1000)
+                deps = analyze_dependencies(issue_dict, all_issues)
                 if not deps['ready_to_work']:
                     pending = [d['key'] for d in deps['depends_on'] if not d['ready']]
                     return standard_response(
@@ -494,8 +542,8 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
                     )
 
             # Update status to in_progress
-            update_data = issue.copy()
-            old_status = issue['status']
+            update_data = issue_dict.copy()
+            old_status = issue_dict['status']
             update_data['status'] = 'in_progress'
             updated_issue = PMDatabase.create_or_update_issue(update_data)
 
@@ -504,7 +552,7 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
                 'issue_key': input.issue_key,
                 'agent': Config.DEFAULT_OWNER,
                 'activity': 'planning',
-                'summary': f"Started work on {input.issue_key}: {issue['title']}",
+                'summary': f"Started work on {input.issue_key}: {issue_dict['title']}",
                 'context': {
                     'previous_status': old_status,
                     'notes': input.notes or "Beginning implementation"
@@ -523,11 +571,11 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
 
             # Handle branch creation if requested
             if input.create_branch:
-                project = PMDatabase.get_project(issue['project_id'])
+                project = PMDatabase.get_project(issue_dict['project_id'])
                 if project:
                     try:
-                        branch_name = issue.get('branch_hint') or generate_branch_name(
-                            input.issue_key, issue['type'], issue['title']
+                        branch_name = issue_dict.get('branch_hint') or generate_branch_name(
+                            input.issue_key, issue_dict['type'], issue_dict['title']
                         )
 
                         # Get project dict for path access
@@ -560,14 +608,19 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
                 hints=hints
             )
 
+    except ScopeError as se:
+        return err(str(se))
     except Exception as e:
+        tb = traceback.format_exc()
         return standard_response(
             success=False,
             message=f"Failed to start work: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
             hints=["Check issue exists", "Verify issue is in startable state"]
         )
 
 @mcp.tool()
+@strict_project_scope
 def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
     """
     Log development activity with artifacts and context.
@@ -575,8 +628,10 @@ def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
     """
     try:
         with DatabaseSession():
-            # Validate issue belongs to current project
-            issue = PMDatabase.get_issue_scoped(input.project_id, input.issue_key)
+            # Validate issue belongs to current project - using strict scope
+            # The decorator adds project_id, but we need to get it properly
+            project_id = _require_project_id(None)
+            issue = PMDatabase.get_issue_scoped(project_id, input.issue_key)
             if issue is None:
                 return err("Issue not found in current project scope")
             issue_dict = PMDatabase._issue_to_dict(issue)
@@ -624,15 +679,222 @@ def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
             )
 
     except Exception as e:
+        tb = traceback.format_exc()
         return standard_response(
             success=False,
             message=f"Failed to log work: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
             hints=["Check issue exists", "Verify time format (e.g., '2h', '30m')"]
+        )
+
+@mcp.tool()
+@strict_project_scope
+def pm_update_status(input: UpdateStatusInput) -> Dict[str, Any]:
+    """
+    Update issue status with workflow validation.
+    Validates status transitions and logs the change.
+    """
+    try:
+        with DatabaseSession():
+            # Get current project context
+            project_id = _require_project_id(None)
+            issue = PMDatabase.get_issue_scoped(project_id, input.issue_key)
+            if issue is None:
+                return err("Issue not found in current project scope")
+
+            issue_dict = PMDatabase._issue_to_dict(issue)
+            old_status = issue_dict['status']
+
+            # Validate workflow transition
+            valid_transitions = {
+                'proposed': ['in_progress', 'canceled'],
+                'in_progress': ['blocked', 'review', 'canceled'],
+                'blocked': ['in_progress', 'canceled'],
+                'review': ['in_progress', 'done', 'canceled'],
+                'done': ['in_progress'],  # Can reopen
+                'canceled': ['proposed']  # Can revive
+            }
+
+            if old_status not in valid_transitions:
+                return err(f"Unknown current status: {old_status}")
+
+            if input.status not in valid_transitions.get(old_status, []):
+                return standard_response(
+                    success=False,
+                    message=f"Invalid status transition: {old_status} → {input.status}",
+                    data={"valid_transitions": valid_transitions.get(old_status, [])},
+                    hints=[f"Valid transitions from {old_status}: {', '.join(valid_transitions.get(old_status, []))}"]
+                )
+
+            # Check for blocker reason if blocking
+            if input.status == 'blocked' and not input.blocker_reason:
+                return err("Blocker reason required when setting status to 'blocked'")
+
+            # Update the issue status
+            update_data = issue_dict.copy()
+            update_data['status'] = input.status
+
+            # Add blocker info if blocking
+            if input.status == 'blocked' and input.blocker_reason:
+                planning = _get_issue_field_json(issue, 'planning')
+                planning['blocker_reason'] = input.blocker_reason
+                planning['blocked_at'] = datetime.utcnow().isoformat()
+                update_data['planning'] = json.dumps(planning)
+
+            updated_issue = PMDatabase.create_or_update_issue(update_data)
+
+            # Log the status change
+            context_data = {
+                'previous_status': old_status,
+                'new_status': input.status
+            }
+            if input.notes:
+                context_data['notes'] = input.notes
+            if input.blocker_reason:
+                context_data['blocker_reason'] = input.blocker_reason
+
+            PMDatabase.add_worklog({
+                'issue_key': input.issue_key,
+                'agent': Config.DEFAULT_OWNER,
+                'activity': 'planning',
+                'summary': f"Status changed from {old_status} to {input.status}",
+                'context': context_data
+            })
+
+            # Build response hints based on new status
+            hints = []
+            if input.status == 'in_progress':
+                hints.extend([
+                    f"pm_log_work --issue-key {input.issue_key} to track progress",
+                    f"pm_create_task --issue-key {input.issue_key} to break down work"
+                ])
+            elif input.status == 'review':
+                hints.append(f"pm_push_branch --issue-key {input.issue_key} --create-pr to create pull request")
+            elif input.status == 'done':
+                hints.append(f"pm_daily_standup to report completion")
+            elif input.status == 'blocked':
+                hints.append(f"pm_blocked_issues to analyze blockers")
+
+            return standard_response(
+                success=True,
+                message=f"Status updated: {old_status} → {input.status}",
+                data={
+                    "issue": updated_issue,
+                    "old_status": old_status,
+                    "new_status": input.status,
+                    "transition": f"{old_status} → {input.status}"
+                },
+                hints=hints
+            )
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to update status: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check issue exists", "Verify status transition is valid"]
+        )
+
+@mcp.tool()
+@strict_project_scope
+def pm_delete_issue(input: DeleteIssueInput) -> Dict[str, Any]:
+    """
+    Delete an issue with all associated data.
+    Requires confirmation and handles cascade deletion.
+    """
+    try:
+        # Safety check - require explicit confirmation
+        if not input.confirm:
+            return standard_response(
+                success=False,
+                message="Deletion not confirmed",
+                data={"safety_check": "Set confirm=true to delete"},
+                hints=["This is a destructive operation - set confirm=true to proceed"]
+            )
+
+        with DatabaseSession():
+            # Get current project context
+            project_id = _require_project_id(None)
+            issue = PMDatabase.get_issue_scoped(project_id, input.issue_key)
+            if issue is None:
+                return err("Issue not found in current project scope")
+
+            issue_dict = PMDatabase._issue_to_dict(issue)
+
+            # Check for blocking dependencies
+            dependencies = issue_dict.get('dependencies', [])
+            if dependencies:
+                # Check if any issues depend on this one
+                from src.jira_lite.models import Issue as JiraIssue
+                all_issues = JiraIssue.select().where(JiraIssue.project == issue.project)
+                blocked_by_this = []
+                for other_issue in all_issues:
+                    if other_issue.dependencies and input.issue_key in other_issue.dependencies:
+                        blocked_by_this.append(other_issue.key)
+
+                if blocked_by_this:
+                    return standard_response(
+                        success=False,
+                        message=f"Cannot delete: Other issues depend on {input.issue_key}",
+                        data={"blocked_by": blocked_by_this},
+                        hints=["Remove dependencies from other issues first"]
+                    )
+
+            # Perform cascade deletion if requested
+            deletion_summary = {
+                "issue_key": input.issue_key,
+                "issue_title": issue_dict['title'],
+                "tasks_deleted": 0,
+                "worklogs_deleted": 0
+            }
+
+            if input.cascade:
+                # Delete all tasks
+                tasks = Task.select().where(Task.issue == issue)
+                deletion_summary["tasks_deleted"] = tasks.count()
+                for task in tasks:
+                    task.delete_instance()
+
+                # Delete all worklogs
+                worklogs = WorkLog.select().where(WorkLog.issue == issue)
+                deletion_summary["worklogs_deleted"] = worklogs.count()
+                for worklog in worklogs:
+                    worklog.delete_instance()
+
+            # Delete the issue itself
+            issue.delete_instance()
+
+            # Log the deletion if reason provided
+            if input.reason:
+                # Create a project-level log entry (no issue to attach to)
+                # This would require a project-level worklog feature
+                # For now, just include in response
+                deletion_summary["deletion_reason"] = input.reason
+
+            return standard_response(
+                success=True,
+                message=f"Issue {input.issue_key} deleted successfully",
+                data=deletion_summary,
+                hints=[
+                    f"Issue and {deletion_summary['tasks_deleted']} tasks deleted",
+                    f"{deletion_summary['worklogs_deleted']} worklogs removed"
+                ]
+            )
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to delete issue: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check issue exists", "Ensure no other issues depend on this one"]
         )
 
 # =============== Git Integration Tools ===============
 
 @mcp.tool()
+@strict_project_scope
 def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
     """
     Create a git branch for an issue following naming conventions.
@@ -647,12 +909,13 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
                     success=False,
                     message=f"Issue {input.issue_key} not found"
                 )
+            issue_dict = PMDatabase._issue_to_dict(issue)
 
-            project = PMDatabase.get_project(issue['project_id'])
+            project = PMDatabase.get_project(issue_dict['project_id'])
             if not project:
                 return standard_response(
                     success=False,
-                    message=f"Project {issue['project_id']} not found"
+                    message=f"Project {issue_dict['project_id']} not found"
                 )
 
             # Rate limiting check
@@ -664,8 +927,8 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
                 )
 
             # Generate or validate branch name
-            branch_name = input.branch_name or issue.get('branch_hint') or generate_branch_name(
-                input.issue_key, issue['type'], issue['title']
+            branch_name = input.branch_name or issue_dict.get('branch_hint') or generate_branch_name(
+                input.issue_key, issue_dict['type'], issue_dict['title']
             )
 
             if not validate_branch_name(branch_name):
@@ -710,7 +973,7 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
 
             if git_result['success']:
                 # Update issue with branch info
-                update_data = issue.copy()
+                update_data = issue_dict.copy()
                 update_data['branch_hint'] = branch_name
                 PMDatabase.create_or_update_issue(update_data)
 
@@ -775,12 +1038,13 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
                     success=False,
                     message=f"Issue {input.issue_key} not found"
                 )
+            issue_dict = PMDatabase._issue_to_dict(issue)
 
-            project = PMDatabase.get_project(issue['project_id'])
+            project = PMDatabase.get_project(issue_dict['project_id'])
             if not project:
                 return standard_response(
                     success=False,
-                    message=f"Project {issue['project_id']} not found"
+                    message=f"Project {issue_dict['project_id']} not found"
                 )
 
             # Rate limiting
@@ -885,6 +1149,7 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
 # =============== Analytics Tools ===============
 
 @mcp.tool()
+@strict_project_scope
 def pm_my_queue(input: MyQueueInput) -> Dict[str, Any]:
     """
     Get personalized work queue with intelligent prioritization.
@@ -1079,6 +1344,7 @@ def pm_blocked_issues(input: BlockedIssuesInput) -> Dict[str, Any]:
 # =============== Workflow Tools ===============
 
 @mcp.tool()
+@strict_project_scope
 def pm_daily_standup(input: DailyStandupInput) -> Dict[str, Any]:
     """
     Generate daily standup report with yesterday's work, today's plan, and blockers.
@@ -1112,7 +1378,7 @@ def pm_daily_standup(input: DailyStandupInput) -> Dict[str, Any]:
             )
 
             # Get blockers
-            blocked_issues = PMDatabase.get_blocked_issues(project_id=project_id)
+            blocked_issues = PMDatabase.get_blocked_issues(project_id=input.project_id)
 
             # Format based on requested format
             if input.format == 'markdown':
@@ -1184,7 +1450,7 @@ def pm_daily_standup(input: DailyStandupInput) -> Dict[str, Any]:
                         "today_items": len(today_issues),
                         "blockers": len(blocked_issues)
                     },
-                    "project": project_id,
+                    "project": input.project_id,
                     "owner": owner
                 },
                 hints=hints
@@ -1273,6 +1539,8 @@ def main():
             # Fallback to basic run
             mcp.run()
 
+    return 0
+
 # =============== Initialization Tools ===============
 
 @mcp.tool()
@@ -1308,7 +1576,13 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
                 )
             return ok("Project initialized", {"project": PMDatabase._project_to_dict(proj)})
     except Exception as e:
-        return err(f"Failed to init project: {type(e).__name__}", {"trace": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to init project: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check if path exists and is a git repository", "Verify you have write permissions"]
+        )
 
 
 @mcp.tool()
@@ -1336,14 +1610,15 @@ def pm_register_project(server_url: str = "http://127.0.0.1:1929",
                     hints=["Run pm_init_project first"]
                 )
 
-            # Prepare registration data
+            # Prepare registration data - convert model to dict first
+            project_dict = PMDatabase._project_to_dict(project)
             registration_data = {
-                'project_id': project['project_id'],
-                'project_slug': project['project_slug'],
-                'absolute_path': project['absolute_path'],
-                'submodules': project.get('submodules', []),
-                'vcs': project.get('vcs', {}),
-                'mcp': project.get('mcp', {})
+                'project_id': project_dict['project_id'],
+                'project_slug': project_dict['project_slug'],
+                'absolute_path': project_dict['absolute_path'],
+                'submodules': project_dict.get('submodules', []),
+                'vcs': project_dict.get('vcs', {}),
+                'mcp': project_dict.get('mcp', {})
             }
 
             # Try to register with web UI
@@ -1398,9 +1673,11 @@ def pm_register_project(server_url: str = "http://127.0.0.1:1929",
                 )
 
     except Exception as e:
+        tb = traceback.format_exc()
         return standard_response(
             success=False,
             message=f"Failed to register project: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
             hints=["Check database connectivity", "Verify project exists"]
         )
 
@@ -1427,7 +1704,13 @@ def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
                 f"pm_start_work --issue-key {input.issue_key} to begin implementation"
             ])
     except Exception as e:
-        return err("Failed to update estimate", {"exception": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to update estimate: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check issue exists", "Verify estimate format (e.g., '2-3 days', '1 week')"]
+        )
 
 @mcp.tool()
 def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
@@ -1450,7 +1733,13 @@ def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
                 f"pm_log_work --issue-key {input.issue_key} --task-id {task.task_id} to log task work"
             ])
     except Exception as e:
-        return err("Failed to create task", {"exception": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to create task: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check issue exists", "Verify task doesn't already exist"]
+        )
 
 @mcp.tool()
 def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
@@ -1470,7 +1759,13 @@ def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
                 "assignee": task.assignee
             })
     except Exception as e:
-        return err("Failed to update task", {"exception": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to update task: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check task exists", "Verify status is valid (todo, doing, blocked, review, done)"]
+        )
 
 @mcp.tool()
 def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
@@ -1504,7 +1799,13 @@ def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
 
             return ok("Git status", data, hints=hints)
     except Exception as e:
-        return err("Failed to get git status", {"exception": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to get git status: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check if you're in a git repository", "Verify git is installed"]
+        )
 
 @mcp.tool()
 def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> Dict[str, Any]:
@@ -1531,7 +1832,13 @@ def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> 
                 "remote": remote
             }, hints=["Create a PR in your VCS host if desired."])
     except Exception as e:
-        return err("Failed to push branch", {"exception": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to push branch: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check remote exists", "Verify git credentials are configured"]
+        )
 
 @mcp.tool()
 def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
@@ -1555,7 +1862,13 @@ def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
                 "timeframe": input.timeframe
             })
     except Exception as e:
-        return err("Failed to compute dashboard", {"exception": str(e)})
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to compute dashboard: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check database connectivity", "Verify project exists"]
+        )
 
 if __name__ == "__main__":
     sys.exit(main())

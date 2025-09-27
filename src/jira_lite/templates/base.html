@@ -8,44 +8,100 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
                         'primary': '#3B82F6',
+                        'primary-dark': '#60A5FA',
                         'secondary': '#6B7280',
+                        'secondary-dark': '#9CA3AF',
+                        'dark-bg': '#0F172A',
+                        'dark-surface': '#1E293B',
+                        'dark-hover': '#334155',
+                        'dark-border': '#334155',
                     }
                 }
             }
         }
     </script>
+    <script>
+        // Theme initialization - must run before page renders
+        (function() {
+            const theme = localStorage.getItem('pm-theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<body class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-gray-200 min-h-screen transition-colors">
+    <nav class="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <h1 class="text-xl font-semibold text-gray-900">
-                        <a href="/" class="hover:text-primary">🎯 Jira-lite PM</a>
+                    <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                        <a href="/" class="hover:text-primary dark:hover:text-primary-dark transition-colors">🎯 Jira-lite PM</a>
                     </h1>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <span class="text-sm text-gray-500">LLM-Native Project Management</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-400">LLM-Native Project Management</span>
+
+                    <!-- Theme Toggle Button -->
+                    <button id="theme-toggle"
+                            class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                            aria-label="Toggle theme">
+                        <svg id="theme-light-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <svg id="theme-dark-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <main class="{% block main_class %}max-w-full{% endblock %} mx-auto py-6 sm:px-6 lg:px-8">
         {% block content %}{% endblock %}
     </main>
 
     <script>
-        // Auto-refresh dashboard every 30 seconds
-        setInterval(() => {
-            if (window.location.pathname !== '/') {
-                htmx.trigger(document.body, 'refresh-dashboard');
+        // Theme toggle functionality
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const lightIcon = document.getElementById('theme-light-icon');
+        const darkIcon = document.getElementById('theme-dark-icon');
+
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            lightIcon.classList.toggle('hidden', !isDark);
+            darkIcon.classList.toggle('hidden', isDark);
+        }
+
+        themeToggleBtn.addEventListener('click', function() {
+            const isDark = document.documentElement.classList.contains('dark');
+
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('pm-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('pm-theme', 'dark');
             }
-        }, 30000);
+
+            updateThemeIcon();
+        });
+
+        // Initialize icon state
+        updateThemeIcon();
+
+        // Store referrer for navigation
+        if (window.location.pathname.includes('/kanban')) {
+            sessionStorage.setItem('pm-referrer', 'kanban');
+        } else if (!window.location.pathname.includes('/issues/')) {
+            sessionStorage.setItem('pm-referrer', 'dashboard');
+        }
     </script>
 </body>
 </html>

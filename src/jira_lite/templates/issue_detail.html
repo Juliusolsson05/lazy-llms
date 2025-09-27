@@ -8,97 +8,117 @@
     <nav class="flex mb-6" aria-label="Breadcrumb">
         <ol class="inline-flex items-center space-x-1 md:space-x-3">
             <li class="inline-flex items-center">
-                <a href="/" class="text-gray-700 hover:text-blue-600">Projects</a>
+                <a href="/" class="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors">Projects</a>
             </li>
             <li>
                 <div class="flex items-center">
-                    <span class="text-gray-400 mx-2">/</span>
-                    <a href="/{{ project.project_id }}" class="text-gray-700 hover:text-blue-600">{{ project.project_slug }}</a>
+                    <span class="text-gray-400 dark:text-gray-600 mx-2">/</span>
+                    <a href="/{{ project.project_id }}" class="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors">{{ project.project_slug }}</a>
                 </div>
             </li>
             <li>
                 <div class="flex items-center">
-                    <span class="text-gray-400 mx-2">/</span>
-                    <span class="text-gray-500">{{ issue.key }}</span>
+                    <span class="text-gray-400 dark:text-gray-600 mx-2">/</span>
+                    <span class="text-gray-700 dark:text-gray-300">{{ issue.key }}</span>
                 </div>
             </li>
         </ol>
     </nav>
 
+    <!-- Back Button - Dynamic based on referrer -->
+    <div class="mb-4">
+        <button onclick="goBack()" class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-dark-border text-sm font-medium rounded text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors">
+            ← Back
+        </button>
+    </div>
+
     <!-- Issue Header -->
-    <div class="bg-white shadow rounded-lg mb-6">
-        <div class="px-6 py-4 border-b border-gray-200">
+    <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        {% if issue.type == 'feature' %}bg-blue-100 text-blue-800{% endif %}
-                        {% if issue.type == 'bug' %}bg-red-100 text-red-800{% endif %}
-                        {% if issue.type == 'refactor' %}bg-purple-100 text-purple-800{% endif %}
-                        {% if issue.type == 'chore' %}bg-gray-100 text-gray-800{% endif %}">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium
+                        {% if issue.type == 'feature' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800{% endif %}
+                        {% if issue.type == 'bug' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800{% endif %}
+                        {% if issue.type == 'refactor' %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800{% endif %}
+                        {% if issue.type == 'chore' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700{% endif %}
+                        {% if issue.type == 'spike' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-800{% endif %}">
                         {{ issue.type }}
                     </span>
-                    <span class="text-lg font-medium text-gray-900">{{ issue.key }}</span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        {% if issue.status == 'proposed' %}bg-gray-100 text-gray-800{% endif %}
-                        {% if issue.status == 'in_progress' %}bg-yellow-100 text-yellow-800{% endif %}
-                        {% if issue.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
-                        {% if issue.status == 'done' %}bg-green-100 text-green-800{% endif %}
-                        {% if issue.status == 'canceled' %}bg-red-100 text-red-800{% endif %}">
+                    <span class="text-lg font-medium text-gray-800 dark:text-gray-200">{{ issue.key }}</span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium
+                        {% if issue.status == 'proposed' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700{% endif %}
+                        {% if issue.status == 'in_progress' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-800{% endif %}
+                        {% if issue.status == 'review' %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800{% endif %}
+                        {% if issue.status == 'done' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-800{% endif %}
+                        {% if issue.status == 'canceled' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800{% endif %}
+                        {% if issue.status == 'blocked' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800{% endif %}">
                         {{ issue.status.replace('_', ' ').title() }}
                     </span>
-                    <span class="text-sm text-gray-500">{{ issue.priority }}</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                        {% if issue.priority == 'P1' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800{% endif %}
+                        {% if issue.priority == 'P2' %}bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-800{% endif %}
+                        {% if issue.priority == 'P3' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-800{% endif %}
+                        {% if issue.priority == 'P4' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800{% endif %}
+                        {% if issue.priority == 'P5' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700{% endif %}">
+                        {{ issue.priority }}
+                    </span>
                 </div>
                 <div class="flex items-center space-x-2">
                     <a href="/{{ project.project_id }}/issues/{{ issue.key }}/edit"
-                       class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                       class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-dark-bg hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors">
                         ✏️ Edit
                     </a>
+                    <button onclick="deleteIssue('{{ issue.key }}')"
+                            class="inline-flex items-center px-3 py-2 border border-red-800 text-sm font-medium rounded text-red-300 bg-red-900/20 hover:bg-red-900/40 transition-colors">
+                        🗑️ Delete
+                    </button>
                 </div>
             </div>
-            <h1 class="mt-2 text-2xl font-bold text-gray-900">{{ issue.title }}</h1>
+            <h1 class="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">{{ issue.title }}</h1>
         </div>
 
         <!-- Issue Metadata -->
-        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div class="px-6 py-4 bg-gray-50 dark:bg-dark-bg/50 border-b border-gray-200 dark:border-dark-border">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">Module</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ issue.module or 'N/A' }}</dd>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Module</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.module or 'N/A' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">Owner</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ issue.owner or 'Unassigned' }}</dd>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Owner</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.owner or 'Unassigned' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">Effort</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ issue.estimated_effort or 'Not estimated' }}</dd>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Effort</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.estimated_effort or 'Not estimated' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">Complexity</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ issue.complexity or 'Medium' }}</dd>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Complexity</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.complexity or 'Medium' }}</dd>
                 </div>
+                {% if issue.risks and issue.risks|length > 0 %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Risks</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.risks|length }} identified</dd>
+                </div>
+                {% endif %}
+                {% if issue.stakeholders and issue.stakeholders|length > 0 %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Stakeholders</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.stakeholders | join(', ') or 'None' }}</dd>
+                </div>
+                {% endif %}
                 {% if issue.created_utc %}
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">Created</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ issue.created_utc | format_date }}</dd>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Created</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.created_utc | format_date }}</dd>
                 </div>
                 {% endif %}
                 {% if issue.updated_utc %}
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">Updated</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ issue.updated_utc | format_date }}</dd>
-                </div>
-                {% endif %}
-                {% if issue.branch_hint %}
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">Branch</dt>
-                    <dd class="mt-1 text-sm text-gray-900 font-mono text-xs">{{ issue.branch_hint }}</dd>
-                </div>
-                {% endif %}
-                {% if issue.dependencies %}
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">Dependencies</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ issue.dependencies | join(', ') }}</dd>
+                    <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Updated</dt>
+                    <dd class="mt-1 text-sm text-gray-800 dark:text-gray-200">{{ issue.updated_utc | format_datetime }}</dd>
                 </div>
                 {% endif %}
             </div>
@@ -107,83 +127,79 @@
 
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left Column - Description -->
+        <!-- Left Column - Main Details -->
         <div class="lg:col-span-2 space-y-6">
             <!-- Description -->
-            {% if issue.description %}
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-medium text-gray-900">Description</h2>
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Description</h2>
+                <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                    {{ render_markdown(issue.description) | safe }}
                 </div>
-                <div class="px-6 py-4 prose prose-sm max-w-none">
-                    {{ render_markdown(issue.description) }}
+            </div>
+
+            <!-- Technical Approach -->
+            {% if issue.technical_approach %}
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Technical Approach</h2>
+                <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                    {{ render_markdown(issue.technical_approach) | safe }}
                 </div>
             </div>
             {% endif %}
 
             <!-- Acceptance Criteria -->
-            {% if issue.acceptance %}
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-medium text-gray-900">Acceptance Criteria</h2>
-                </div>
-                <div class="px-6 py-4">
-                    <ul class="space-y-2">
-                        {% for criterion in issue.acceptance %}
-                        <li class="flex items-start">
-                            <span class="text-green-500 mr-2">✓</span>
-                            <span class="text-sm text-gray-900">{{ criterion }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
+            {% if issue.acceptance_criteria %}
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Acceptance Criteria</h2>
+                <ul class="space-y-2">
+                    {% for criterion in issue.acceptance_criteria %}
+                    <li class="flex items-start">
+                        <span class="text-green-600 dark:text-green-400 mr-2">✓</span>
+                        <span class="text-gray-700 dark:text-gray-300">{{ criterion }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
             </div>
             {% endif %}
 
             <!-- Tasks -->
             {% if tasks %}
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-medium text-gray-900">Tasks</h2>
-                </div>
-                <div class="divide-y divide-gray-200">
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Tasks</h2>
+                <div class="space-y-2">
                     {% for task in tasks %}
-                    <div class="px-6 py-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center space-x-3">
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                                    {% if task.status == 'todo' %}bg-gray-100 text-gray-800{% endif %}
-                                    {% if task.status == 'doing' %}bg-yellow-100 text-yellow-800{% endif %}
-                                    {% if task.status == 'blocked' %}bg-red-100 text-red-800{% endif %}
-                                    {% if task.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
-                                    {% if task.status == 'done' %}bg-green-100 text-green-800{% endif %}">
-                                    {{ task.status }}
-                                </span>
-                                <span class="text-sm font-medium text-gray-900">{{ task.task_id }}</span>
-                            </div>
-                            {% if task.checklist %}
-                            {% set completed = task.checklist | selectattr('done', 'equalto', true) | list | length %}
-                            <span class="text-xs text-gray-500">{{ completed }}/{{ task.checklist | length }} complete</span>
-                            {% endif %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-bg rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium
+                                {% if task.status == 'todo' %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300{% endif %}
+                                {% if task.status == 'doing' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300{% endif %}
+                                {% if task.status == 'done' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300{% endif %}
+                                {% if task.status == 'blocked' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300{% endif %}">
+                                {{ task.status }}
+                            </span>
+                            <span class="text-sm text-gray-800 dark:text-gray-200">{{ task.title }}</span>
                         </div>
-                        <h3 class="text-sm font-medium text-gray-900 mb-2">{{ task.title }}</h3>
-                        {% if task.notes %}
-                        <p class="text-sm text-gray-600 mb-2">{{ task.notes }}</p>
-                        {% endif %}
-                        {% if task.checklist %}
-                        <ul class="space-y-1">
-                            {% for item in task.checklist %}
-                            <li class="flex items-center">
-                                {% if item.done %}
-                                <span class="text-green-500 mr-2">✅</span>
-                                <span class="text-sm text-gray-500 line-through">{{ item.text }}</span>
-                                {% else %}
-                                <span class="text-gray-400 mr-2">⬜</span>
-                                <span class="text-sm text-gray-900">{{ item.text }}</span>
-                                {% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ task.task_id }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Work Logs -->
+            {% if worklogs %}
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Work History</h2>
+                <div class="space-y-3">
+                    {% for log in worklogs %}
+                    <div class="border-l-2 border-gray-200 dark:border-dark-border pl-4 py-2">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ log.activity.title() }}</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ log.timestamp_utc | format_datetime }}</span>
+                        </div>
+                        <p class="text-sm text-gray-700 dark:text-gray-300">{{ log.summary }}</p>
+                        {% if log.time_spent %}
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Time: {{ log.time_spent }}</span>
                         {% endif %}
                     </div>
                     {% endfor %}
@@ -192,101 +208,71 @@
             {% endif %}
         </div>
 
-        <!-- Right Column - Sidebar -->
+        <!-- Right Column - Sidebar Info -->
         <div class="space-y-6">
-            <!-- Quick Actions -->
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-medium text-gray-900">Quick Actions</h2>
-                </div>
-                <div class="px-6 py-4 space-y-3">
-                    <a href="/{{ project.project_id }}/issues/{{ issue.key }}/edit"
-                       class="block w-full text-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                        Edit Issue
-                    </a>
-                    <button class="block w-full text-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-                        Create Task
-                    </button>
-                    <button class="block w-full text-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
-                        Log Work
-                    </button>
-                </div>
-            </div>
-
-            <!-- Git Information -->
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-medium text-gray-900">Git Integration</h2>
-                </div>
-                <div class="px-6 py-4 space-y-3">
-                    {% if issue.branch_hint %}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Branch</label>
-                        <code class="block mt-1 p-2 bg-gray-100 rounded text-xs">{{ issue.branch_hint }}</code>
-                    </div>
-                    {% endif %}
-                    {% if issue.commit_preamble %}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Commit Prefix</label>
-                        <code class="block mt-1 p-2 bg-gray-100 rounded text-xs">{{ issue.commit_preamble }}</code>
-                    </div>
-                    {% endif %}
-                    {% if issue.commit_trailer %}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Commit Trailer</label>
-                        <code class="block mt-1 p-2 bg-gray-100 rounded text-xs">{{ issue.commit_trailer }}</code>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Recent Activity -->
-            {% if worklogs %}
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-medium text-gray-900">Recent Activity</h2>
-                </div>
-                <div class="divide-y divide-gray-200">
-                    {% for worklog in worklogs[:5] %}
-                    <div class="px-6 py-4">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {{ worklog.activity }}
+            <!-- Dependencies -->
+            {% if dependencies %}
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Dependencies</h3>
+                {% if dependencies.depends_on %}
+                <div class="mb-4">
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">Depends on:</p>
+                    <ul class="space-y-1">
+                        {% for dep in dependencies.depends_on %}
+                        <li class="text-sm">
+                            <a href="/{{ project.project_id }}/issues/{{ dep.key }}" class="text-primary hover:underline">
+                                {{ dep.key }}: {{ dep.title }}
+                            </a>
+                            <span class="text-xs ml-1 px-1 py-0.5 rounded
+                                {% if dep.status == 'done' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300{% else %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300{% endif %}">
+                                {{ dep.status }}
                             </span>
-                            <span class="text-xs text-gray-500">{{ worklog.timestamp_utc | format_datetime }}</span>
-                        </div>
-                        <p class="text-sm text-gray-900">{{ worklog.summary }}</p>
-                        {% if worklog.artifacts %}
-                        <div class="mt-2 space-y-1">
-                            {% for artifact in worklog.artifacts %}
-                            <div class="text-xs text-gray-600">
-                                {% if artifact.type == 'commit' %}
-                                🔗 <code>{{ artifact.sha[:7] }}</code> {{ artifact.subject }}
-                                {% elif artifact.type == 'file' %}
-                                📄 {{ artifact.path }}
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
+                        </li>
+                        {% endfor %}
+                    </ul>
                 </div>
+                {% endif %}
+                {% if dependencies.blocks %}
+                <div>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">Blocks:</p>
+                    <ul class="space-y-1">
+                        {% for blocked in dependencies.blocks %}
+                        <li class="text-sm">
+                            <a href="/{{ project.project_id }}/issues/{{ blocked.key }}" class="text-primary hover:underline">
+                                {{ blocked.key }}: {{ blocked.title }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
 
-            <!-- Links -->
-            {% if issue.links %}
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-medium text-gray-900">Related Links</h2>
-                </div>
-                <div class="px-6 py-4 space-y-2">
-                    {% for link_name, link_url in issue.links.items() %}
-                    <div>
-                        <a href="{{ link_url }}" class="text-sm text-blue-600 hover:text-blue-800">
-                            {{ link_name.replace('_', ' ').title() }}
-                        </a>
+            <!-- Risks -->
+            {% if issue.risks and issue.risks|length > 0 %}
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Risks</h3>
+                <ul class="space-y-2">
+                    {% for risk in issue.risks %}
+                    <li class="text-sm text-gray-700 dark:text-gray-300 flex items-start">
+                        <span class="text-yellow-600 dark:text-yellow-400 mr-2">⚠</span>
+                        {{ risk }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Estimate Notes -->
+            {% if issue.estimate_notes and issue.estimate_notes|length > 0 %}
+            <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+                <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Estimate History</h3>
+                <div class="space-y-2">
+                    {% for note in issue.estimate_notes %}
+                    <div class="text-xs">
+                        <p class="text-gray-500 dark:text-gray-400">{{ note.timestamp_utc | format_datetime }}</p>
+                        <p class="text-gray-700 dark:text-gray-300 mt-1">{{ note.reasoning }}</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -296,20 +282,43 @@
     </div>
 </div>
 
-<style>
-.prose h1 { @apply text-2xl font-bold text-gray-900 mb-4; }
-.prose h2 { @apply text-xl font-semibold text-gray-900 mb-3; }
-.prose h3 { @apply text-lg font-medium text-gray-900 mb-2; }
-.prose h4 { @apply text-base font-medium text-gray-900 mb-2; }
-.prose p { @apply mb-4 text-gray-700; }
-.prose ul { @apply list-disc pl-6 mb-4; }
-.prose ol { @apply list-decimal pl-6 mb-4; }
-.prose li { @apply mb-1; }
-.prose code { @apply bg-gray-100 px-1 rounded text-sm; }
-.prose pre { @apply bg-gray-100 p-4 rounded text-sm overflow-x-auto; }
-.prose blockquote { @apply border-l-4 border-gray-300 pl-4 italic text-gray-600; }
-.prose table { @apply w-full border-collapse border border-gray-300; }
-.prose th { @apply border border-gray-300 px-4 py-2 bg-gray-100 font-medium; }
-.prose td { @apply border border-gray-300 px-4 py-2; }
-</style>
+<script>
+// Back navigation
+function goBack() {
+    const referrer = sessionStorage.getItem('pm-referrer');
+    const projectId = '{{ project.project_id }}';
+
+    if (referrer === 'kanban') {
+        window.location.href = '/' + projectId + '/kanban';
+    } else {
+        window.location.href = '/' + projectId;
+    }
+}
+
+// Delete issue
+async function deleteIssue(issueKey) {
+    if (!confirm(`Are you sure you want to delete issue ${issueKey}? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/issues/${issueKey}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete issue');
+        }
+
+        // Navigate back after successful deletion
+        goBack();
+    } catch (error) {
+        console.error('Error deleting issue:', error);
+        alert('Failed to delete issue');
+    }
+}
+</script>
 {% endblock %}

@@ -126,7 +126,7 @@ def err(message: str, details: Optional[Dict[str, Any]] = None, hints: Optional[
 def run_git(repo_path: str, args: List[str]) -> Dict[str, Any]:
     """Run git command with security allowlist"""
     # Very conservative allowlist
-    allow = {"status", "rev-parse", "branch", "push", "config", "checkout", "add", "commit", "remote", "pull", "log"}
+    allow = {"status", "rev-parse", "branch", "push", "config", "checkout", "add", "commit", "remote", "pull", "log", "init"}
     if not args:
         return {"rc": 1, "out": "", "err": "No git args"}
     if args[0] not in allow:
@@ -780,11 +780,21 @@ async def ensure_project_git_setup(project_path: Path) -> bool:
         # Check if it's a git repo
         result = await run_git_command_async(['status'], cwd=project_path)
         if not result['success']:
-            return False
+            # Initialize git repo if not exists
+            init_result = await run_git_command_async(['init'], cwd=project_path)
+            if not init_result['success']:
+                return False
 
         # Setup git identity
-        identity_setup = await setup_git_identity(project_path)
-        return identity_setup
+        await run_git_command_async(
+            ['config', 'user.name', Config.GIT_USER_NAME or 'PM Agent'],
+            cwd=project_path
+        )
+        await run_git_command_async(
+            ['config', 'user.email', Config.GIT_USER_EMAIL or 'pm@local'],
+            cwd=project_path
+        )
+        return True
     except Exception:
         return False
 

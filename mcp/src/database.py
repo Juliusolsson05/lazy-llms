@@ -341,11 +341,11 @@ class PMDatabase:
         if not project_id or not issue_key:
             return None
         try:
-            return (Issue
-                    .select()
-                    .join(Project)
-                    .where((Issue.key == issue_key) & (Project.project_id == project_id))
-                    .get())
+            issue = Issue.get(Issue.key == issue_key)
+            # Verify it belongs to the right project
+            if issue.project.project_id != project_id:
+                return None
+            return issue
         except DoesNotExist:
             return None
 
@@ -444,7 +444,6 @@ class PMDatabase:
         now = datetime.utcnow()
 
         # Generate issue key
-        existing_count = Issue.select().where(Issue.project == project).count()
         issue_key = cls.generate_issue_key(project.project_slug)
 
         spec = {
@@ -479,27 +478,6 @@ class PMDatabase:
             implementation=json.dumps(implementation),
             created_utc=now,
             updated_utc=now,
-        )
-
-    @classmethod
-    def append_worklog(cls, input_model) -> WorkLog:
-        """Append worklog from input model - returns Peewee model"""
-        issue = cls.get_issue(input_model.issue_key)
-        if issue is None:
-            raise ValueError("Issue not found")
-
-        artifacts = getattr(input_model, 'artifacts', []) or []
-        context = getattr(input_model, 'context', {}) or {}
-
-        return WorkLog.create(
-            issue=issue,
-            task=None,
-            agent=getattr(input_model, 'agent', 'agent:claude-code') or "agent:claude-code",
-            timestamp_utc=datetime.utcnow(),
-            activity=input_model.activity,
-            summary=input_model.summary,
-            artifacts=json.dumps(artifacts) if not isinstance(artifacts, str) else artifacts,
-            context=json.dumps(context) if not isinstance(context, str) else context,
         )
 
     @classmethod
@@ -656,6 +634,133 @@ class PMDatabase:
         task.updated_utc = datetime.utcnow()
         task.save()
         return task
+
+    @classmethod
+    def get_issues(cls, project_id: Optional[str] = None,
+                   owner: Optional[str] = None,
+                   status: Optional[str] = None,
+                   priority: Optional[str] = None,
+                   module: Optional[str] = None,
+                   limit: int = 1000) -> List[Dict[str, Any]]:
+        """
+        Return issues as rich dicts, optionally filtered.
+        This is a dict-returning convenience wrapper used by server.py.
+        """
+        query = Issue.select()
+        if project_id:
+            query = query.join(Project).where(Project.project_id == project_id)
+        if owner:
+            query = query.where(Issue.owner == owner)
+        if status:
+            query = query.where(Issue.status == status)
+        if priority:
+            query = query.where(Issue.priority == priority)
+        if module:
+            query = query.where(Issue.module == module)
+        query = query.order_by(Issue.updated_utc.desc()).limit(limit)
+        return [i.to_rich_dict() for i in query]
+
+    @classmethod
+    def create_or_update_issue(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update a single issue by key with incoming dict fields, mirroring IssueRepository logic.
+        Returns a rich dict.
+        """
+        if "key" not in data:
+            raise ValueError("create_or_update_issue requires 'key'")
+        issue = cls.get_issue(data["key"])
+        now = datetime.utcnow()
+
+        # Prepare JSON fields
+        spec = _safe_json(getattr(issue, "specification", None), {}) if issue else {}
+        plan = _safe_json(getattr(issue, "planning", None), {}) if issue else {}
+        impl = _safe_json(getattr(issue, "implementation", None), {}) if issue else {}
+
+        # Merge incoming values
+        if "description" in data or "acceptance_criteria" in data or "technical_approach" in data:
+            spec.update({
+                "description": data.get("description", spec.get("description", "")),
+                "acceptance_criteria": data.get("acceptance_criteria", spec.get("acceptance_criteria", [])),
+                "technical_approach": data.get("technical_approach", spec.get("technical_approach", "")),
+            })
+
+        if any(k in data for k in ("dependencies", "stakeholders", "estimated_effort", "complexity", "risks")):
+            plan.update({
+                "dependencies": data.get("dependencies", plan.get("dependencies", [])),
+                "stakeholders": data.get("stakeholders", plan.get("stakeholders", [])),
+                "estimated_effort": data.get("estimated_effort", plan.get("estimated_effort", None)),
+                "complexity": data.get("complexity", plan.get("complexity", "Medium")),
+                "risks": data.get("risks", plan.get("risks", [])),
+            })
+
+        if any(k in data for k in ("branch_hint", "commit_preamble", "commit_trailer", "links")):
+            impl.update({
+                "branch_hint": data.get("branch_hint", impl.get("branch_hint", None)),
+                "commit_preamble": data.get("commit_preamble", impl.get("commit_preamble", None)),
+                "commit_trailer": data.get("commit_trailer", impl.get("commit_trailer", None)),
+                "links": data.get("links", impl.get("links", {})) or {},
+            })
+
+        if issue:
+            # Update scalar fields
+            for f in ("title", "type", "status", "priority", "module", "owner", "external_id"):
+                if f in data and data[f] is not None:
+                    setattr(issue, f, data[f])
+            issue.specification = json.dumps(spec)
+            issue.planning = json.dumps(plan)
+            issue.implementation = json.dumps(impl)
+            issue.updated_utc = now
+            issue.save()
+        else:
+            # Need a project to create a new one
+            project_id = data.get("project_id")
+            project = cls.get_project(project_id) if project_id else None
+            if not project:
+                raise ValueError("Project not found for issue creation")
+            issue = Issue.create(
+                project=project,
+                key=data["key"],
+                title=data["title"],
+                type=data["type"],
+                status=data.get("status", "proposed"),
+                priority=data.get("priority", "P3"),
+                module=data.get("module"),
+                owner=data.get("owner"),
+                external_id=data.get("external_id"),
+                specification=json.dumps(spec),
+                planning=json.dumps(plan),
+                implementation=json.dumps(impl),
+                created_utc=now,
+                updated_utc=now,
+            )
+
+        return issue.to_rich_dict()
+
+    @classmethod
+    def add_worklog(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Convenience wrapper expected by server.py.
+        Creates a WorkLog from dict and returns a dict.
+        """
+        issue = cls.get_issue(data["issue_key"])
+        if not issue:
+            raise ValueError(f"Issue not found: {data['issue_key']}")
+
+        task = None
+        if data.get("task_id"):
+            task = cls.get_task(data["task_id"])
+
+        wl = WorkLog.create(
+            issue=issue,
+            task=task,
+            agent=data.get("agent", "agent:claude-code"),
+            timestamp_utc=datetime.utcnow(),
+            activity=data["activity"],
+            summary=data["summary"],
+            artifacts=json.dumps(data.get("artifacts") or []),
+            context=json.dumps(data.get("context") or {}),
+        )
+        return wl.to_dict()
 
     @classmethod
     def append_worklog(cls, issue, agent: str, activity: str, summary: str,

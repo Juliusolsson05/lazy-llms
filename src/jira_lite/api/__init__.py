@@ -283,4 +283,31 @@ def create_api_blueprint():
         issues = IssueRepository.get_blocked_issues(project_id)
         return jsonify([issue.to_dict() for issue in issues])
 
+    @api_bp.route('/issues/<issue_key>', methods=['DELETE'])
+    def delete_issue(issue_key):
+        """Delete an issue and all related data"""
+        try:
+            issue = IssueRepository.find_by_key(issue_key)
+            if not issue:
+                return jsonify({'error': 'Issue not found'}), 404
+
+            # Delete related worklogs
+            from ..models import WorkLog
+            WorkLog.delete().where(WorkLog.issue == issue).execute()
+
+            # Delete related tasks
+            from ..models import Task
+            Task.delete().where(Task.issue == issue).execute()
+
+            # Delete the issue
+            issue.delete_instance()
+
+            # Log to JSONL
+            log_event_to_jsonl('issue_deleted', {'key': issue_key})
+
+            return jsonify({'message': f'Issue {issue_key} deleted successfully'}), 200
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     return api_bp

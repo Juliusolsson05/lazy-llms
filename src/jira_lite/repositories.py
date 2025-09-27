@@ -167,58 +167,107 @@ class IssueRepository:
     def create_or_update(issue_data: Dict[str, Any]) -> Issue:
         """Create new issue or update existing by key"""
 
-        # Prepare structured data
-        structured_fields = {
-            'key': issue_data['key'],
-            'title': issue_data['title'],
-            'type': issue_data['type'],
-            'status': issue_data.get('status', 'proposed'),
-            'priority': issue_data.get('priority', 'P3'),
-            'module': issue_data.get('module'),
-            'owner': issue_data.get('owner'),
-            'external_id': issue_data.get('external_id')
-        }
-
-        # Prepare JSON fields
-        specification = {
-            'description': issue_data.get('description', ''),
-            'acceptance_criteria': issue_data.get('acceptance', []),
-            'technical_approach': issue_data.get('technical_approach', ''),
-            'business_requirements': issue_data.get('business_requirements', [])
-        }
-
-        planning = {
-            'dependencies': issue_data.get('dependencies', []),
-            'stakeholders': issue_data.get('stakeholders', []),
-            'estimated_effort': issue_data.get('estimated_effort', ''),
-            'complexity': issue_data.get('complexity', 'Medium'),
-            'risks': issue_data.get('risks', [])
-        }
-
-        implementation = {
-            'branch_hint': issue_data.get('branch_hint', ''),
-            'commit_preamble': issue_data.get('commit_preamble', ''),
-            'commit_trailer': issue_data.get('commit_trailer', ''),
-            'links': issue_data.get('links', {}),
-            'artifacts': issue_data.get('artifacts', [])
-        }
-
         try:
-            # Find existing issue
+            # Find existing issue - this is an update operation
             issue = Issue.get(Issue.key == issue_data['key'])
 
-            # Update existing
-            for key, value in structured_fields.items():
-                if value is not None:
-                    setattr(issue, key, value)
+            # For updates, only change fields that are provided
+            if 'status' in issue_data:
+                issue.status = issue_data['status']
+            if 'priority' in issue_data:
+                issue.priority = issue_data['priority']
+            if 'module' in issue_data:
+                issue.module = issue_data['module']
+            if 'owner' in issue_data:
+                issue.owner = issue_data['owner']
+            if 'title' in issue_data:
+                issue.title = issue_data['title']
+            if 'type' in issue_data:
+                issue.type = issue_data['type']
+            if 'external_id' in issue_data:
+                issue.external_id = issue_data['external_id']
 
-            issue.specification = json.dumps(specification)
-            issue.planning = json.dumps(planning)
-            issue.implementation = json.dumps(implementation)
+            # Only update JSON fields if relevant data is provided
+            if any(k in issue_data for k in ['description', 'acceptance', 'technical_approach', 'business_requirements']):
+                spec = json.loads(issue.specification) if issue.specification else {}
+                if 'description' in issue_data:
+                    spec['description'] = issue_data['description']
+                if 'acceptance' in issue_data:
+                    spec['acceptance_criteria'] = issue_data['acceptance']
+                if 'technical_approach' in issue_data:
+                    spec['technical_approach'] = issue_data['technical_approach']
+                if 'business_requirements' in issue_data:
+                    spec['business_requirements'] = issue_data['business_requirements']
+                issue.specification = json.dumps(spec)
+
+            if any(k in issue_data for k in ['dependencies', 'stakeholders', 'estimated_effort', 'complexity', 'risks']):
+                plan = json.loads(issue.planning) if issue.planning else {}
+                if 'dependencies' in issue_data:
+                    plan['dependencies'] = issue_data['dependencies']
+                if 'stakeholders' in issue_data:
+                    plan['stakeholders'] = issue_data['stakeholders']
+                if 'estimated_effort' in issue_data:
+                    plan['estimated_effort'] = issue_data['estimated_effort']
+                if 'complexity' in issue_data:
+                    plan['complexity'] = issue_data['complexity']
+                if 'risks' in issue_data:
+                    plan['risks'] = issue_data['risks']
+                issue.planning = json.dumps(plan)
+
+            if any(k in issue_data for k in ['branch_hint', 'commit_preamble', 'commit_trailer', 'links', 'artifacts']):
+                impl = json.loads(issue.implementation) if issue.implementation else {}
+                if 'branch_hint' in issue_data:
+                    impl['branch_hint'] = issue_data['branch_hint']
+                if 'commit_preamble' in issue_data:
+                    impl['commit_preamble'] = issue_data['commit_preamble']
+                if 'commit_trailer' in issue_data:
+                    impl['commit_trailer'] = issue_data['commit_trailer']
+                if 'links' in issue_data:
+                    impl['links'] = issue_data['links']
+                if 'artifacts' in issue_data:
+                    impl['artifacts'] = issue_data['artifacts']
+                issue.implementation = json.dumps(impl)
+
             issue.save()
 
         except DoesNotExist:
-            # Create new issue - need to find project first
+            # Create new issue - requires full data
+            structured_fields = {
+                'key': issue_data['key'],
+                'title': issue_data['title'],
+                'type': issue_data['type'],
+                'status': issue_data.get('status', 'proposed'),
+                'priority': issue_data.get('priority', 'P3'),
+                'module': issue_data.get('module'),
+                'owner': issue_data.get('owner'),
+                'external_id': issue_data.get('external_id')
+            }
+
+            # Prepare JSON fields
+            specification = {
+                'description': issue_data.get('description', ''),
+                'acceptance_criteria': issue_data.get('acceptance', []),
+                'technical_approach': issue_data.get('technical_approach', ''),
+                'business_requirements': issue_data.get('business_requirements', [])
+            }
+
+            planning = {
+                'dependencies': issue_data.get('dependencies', []),
+                'stakeholders': issue_data.get('stakeholders', []),
+                'estimated_effort': issue_data.get('estimated_effort', ''),
+                'complexity': issue_data.get('complexity', 'Medium'),
+                'risks': issue_data.get('risks', [])
+            }
+
+            implementation = {
+                'branch_hint': issue_data.get('branch_hint', ''),
+                'commit_preamble': issue_data.get('commit_preamble', ''),
+                'commit_trailer': issue_data.get('commit_trailer', ''),
+                'links': issue_data.get('links', {}),
+                'artifacts': issue_data.get('artifacts', [])
+            }
+
+            # need to find project first
             project = None
             if 'project_id' in issue_data:
                 project = ProjectRepository.find_by_id(issue_data['project_id'])

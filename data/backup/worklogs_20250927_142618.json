@@ -1,0 +1,125 @@
+[
+  {
+    "project_id": "pn_1f6d7c94b9c4418ea3b92d3d8a2c4f6e",
+    "issue_key": "PN-202509-001",
+    "task_id": "PN-202509-001-T1",
+    "agent": "agent:claude-code",
+    "timestamp_utc": "2025-09-26T13:50:58.181507Z",
+    "activity": "code",
+    "summary": "Created migration and models for password reset",
+    "artifacts": [
+      {
+        "type": "commit",
+        "sha": "a1b2c3d4",
+        "subject": "[pm PN-202509-001] feat: add password reset models",
+        "branch": "feat/PN-202509-001-user-can-reset-password"
+      },
+      {
+        "type": "file",
+        "path": "backend/migrations/0002_password_reset.py"
+      }
+    ],
+    "id": "e4913ec5-2252-4dd8-a698-438dde279583"
+  },
+  {
+    "project_id": "pn_1f6d7c94b9c4418ea3b92d3d8a2c4f6e",
+    "issue_key": "PN-202509-001",
+    "task_id": "PN-202509-001-T1",
+    "agent": "agent:claude-code",
+    "timestamp_utc": "2025-09-26T14:50:58.181507Z",
+    "activity": "test",
+    "summary": "Added comprehensive tests for password reset functionality",
+    "artifacts": [
+      {
+        "type": "commit",
+        "sha": "e5f6g7h8",
+        "subject": "[pm PN-202509-001] test: add password reset tests",
+        "branch": "feat/PN-202509-001-user-can-reset-password"
+      },
+      {
+        "type": "file",
+        "path": "backend/tests/test_password_reset.py"
+      }
+    ],
+    "id": "8a42e08e-e44a-4b70-a08a-9b296a3edf60"
+  },
+  {
+    "project_id": "pn_1f6d7c94b9c4418ea3b92d3d8a2c4f6e",
+    "issue_key": "PN-202509-002",
+    "task_id": "PN-202509-002-T1",
+    "agent": "agent:claude-code",
+    "timestamp_utc": "2025-09-26T16:50:58.181507Z",
+    "activity": "refactor",
+    "summary": "Refactored validation error handling for better UX",
+    "artifacts": [
+      {
+        "type": "commit",
+        "sha": "i9j0k1l2",
+        "subject": "[pm PN-202509-002] refactor: improve validation errors",
+        "branch": "fix/PN-202509-002-login-validation-errors"
+      },
+      {
+        "type": "file",
+        "path": "frontend/src/components/ValidationError.tsx"
+      }
+    ],
+    "id": "1da390f1-567c-44fd-b583-22dcb4ef4a53"
+  },
+  {
+    "project_id": "pn_2a8c9e5f1d2b7c3a4e6f8g9h0i1j2k3l",
+    "issue_key": "AI-202509-001",
+    "agent": "agent:claude-code",
+    "timestamp_utc": "2025-09-26T15:50:58.181507Z",
+    "activity": "plan",
+    "summary": "Analyzed conversation memory requirements and designed architecture",
+    "artifacts": [
+      {
+        "type": "file",
+        "path": "docs/conversation-memory-design.md"
+      }
+    ],
+    "id": "b32ef271-7a61-4da2-aace-ab63c8ded371"
+  },
+  {
+    "project_id": "pn_3e2f4a6b8c0d9e1f2a3b4c5d6e7f8g9h",
+    "issue_key": "MGE-202509-001",
+    "agent": "agent:claude-code",
+    "timestamp_utc": "2025-09-26T14:50:58.181507Z",
+    "activity": "code",
+    "summary": "Implemented basic collision detection algorithms",
+    "artifacts": [
+      {
+        "type": "commit",
+        "sha": "m1n2o3p4",
+        "subject": "[pm MGE-202509-001] feat: add collision detection",
+        "branch": "feat/MGE-202509-001-physics-engine"
+      },
+      {
+        "type": "file",
+        "path": "engine/core/physics/collision.cpp"
+      }
+    ],
+    "id": "b0cf4ae8-32b7-413b-bdab-2de793b233fa"
+  },
+  {
+    "project_id": "pn_3e2f4a6b8c0d9e1f2a3b4c5d6e7f8g9h",
+    "issue_key": "MGE-202509-001",
+    "agent": "agent:claude-code",
+    "timestamp_utc": "2025-09-26T17:20:58.181507Z",
+    "activity": "test",
+    "summary": "Added unit tests for physics calculations",
+    "artifacts": [
+      {
+        "type": "commit",
+        "sha": "q4r5s6t7",
+        "subject": "[pm MGE-202509-001] test: add physics unit tests",
+        "branch": "feat/MGE-202509-001-physics-engine"
+      },
+      {
+        "type": "file",
+        "path": "tests/physics/test_collision.cpp"
+      }
+    ],
+    "id": "5ffbf2b0-1146-4bdb-82bd-a3e53801e86e"
+  }
+]

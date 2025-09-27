@@ -173,6 +173,24 @@ class Issue(BaseModel):
         impl = self._get_json_field('implementation')
         return impl.get('links', {})
 
+    @property
+    def technical_approach(self):
+        """Get technical approach from specification JSON"""
+        spec = self._get_json_field('specification')
+        return spec.get('technical_approach', '')
+
+    @property
+    def risks(self):
+        """Get risks from planning JSON"""
+        plan = self._get_json_field('planning')
+        return plan.get('risks', [])
+
+    @property
+    def estimate_notes(self):
+        """Get estimate notes from planning JSON"""
+        plan = self._get_json_field('planning')
+        return plan.get('estimate_notes', [])
+
     def _get_json_field(self, field_name):
         """Helper to safely parse JSON fields"""
         field_value = getattr(self, field_name)
@@ -193,6 +211,7 @@ class Issue(BaseModel):
         data.update({
             'description': self.description,
             'acceptance': self.acceptance,
+            'acceptance_criteria': self.acceptance_criteria,  # Alias
             'dependencies': self.dependencies,
             'stakeholders': self.stakeholders,
             'estimated_effort': self.estimated_effort,
@@ -200,7 +219,10 @@ class Issue(BaseModel):
             'branch_hint': self.branch_hint,
             'commit_preamble': self.commit_preamble,
             'commit_trailer': self.commit_trailer,
-            'links': self.links
+            'links': self.links,
+            'technical_approach': self.technical_approach,
+            'risks': self.risks,
+            'estimate_notes': self.estimate_notes
         })
         return data
 
@@ -271,30 +293,62 @@ class WorkLog(BaseModel):
     @property
     def artifacts_list(self):
         """Get artifacts list from JSON"""
-        return self._get_json_field('artifacts')
+        return self._get_json_list('artifacts')
 
     @property
     def context_data(self):
         """Get context data from JSON"""
-        return self._get_json_field('context')
+        return self._get_json_dict('context')
 
-    def _get_json_field(self, field_name):
-        """Helper to safely parse JSON fields"""
-        field_value = getattr(self, field_name)
-        if not field_value:
+    @property
+    def time_spent(self):
+        """Get time spent from context"""
+        context = self.context_data
+        return context.get('time_spent', '')
+
+    @property
+    def blockers(self):
+        """Get blockers from context"""
+        context = self.context_data
+        return context.get('blockers', '')
+
+    @property
+    def decisions(self):
+        """Get decisions from context"""
+        context = self.context_data
+        return context.get('decisions', '')
+
+    def _get_json_list(self, field_name):
+        """Helper to safely parse JSON list fields"""
+        val = getattr(self, field_name)
+        if not val:
             return []
         try:
-            data = json.loads(field_value)
+            data = json.loads(val)
             return data if isinstance(data, list) else []
-        except (json.JSONDecodeError, TypeError):
+        except Exception:
             return []
+
+    def _get_json_dict(self, field_name):
+        """Helper to safely parse JSON dict fields"""
+        val = getattr(self, field_name)
+        if not val:
+            return {}
+        try:
+            data = json.loads(val)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
 
     def to_dict(self):
         """Enhanced to_dict with JSON properties"""
         data = super().to_dict()
         data.update({
             'artifacts': self.artifacts_list,
-            'context': self.context_data
+            'context': self.context_data,
+            'time_spent': self.time_spent,
+            'blockers': self.blockers,
+            'decisions': self.decisions
         })
         return data
 

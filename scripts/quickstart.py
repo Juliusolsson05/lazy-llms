@@ -58,7 +58,7 @@ Add this to your shell profile for permanent configuration:
 {env_export}
 
 ## 3. Web UI Access
-- Dashboard: http://127.0.0.1:1929
+- Dashboard: http://127.0.0.1:1928
 - Create issues, manage projects, view analytics
 
 ## 4. Available MCP Tools
@@ -100,7 +100,7 @@ Projects: 4 found with 13 issues, 7 tasks, 16 worklogs
     print("\n" + "=" * 60)
     print("🎯 SYSTEM READY!")
     print("=" * 60)
-    print("• Web UI: http://127.0.0.1:1929")
+    print("• Web UI: http://127.0.0.1:1928")
     print("• MCP Server: Connected to SQLite database")
     print("• Database: 4 projects, 13 issues ready")
     print("• Claude Code: Run the copied command above")
