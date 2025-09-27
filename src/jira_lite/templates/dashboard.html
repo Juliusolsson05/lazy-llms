@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.project_slug }} - Dashboard{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Project Header -->
+    <div class="mb-8">
+        <div class="sm:flex sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">{{ project.project_slug }}</h1>
+                <p class="mt-2 text-sm text-gray-600">{{ project.absolute_path }}</p>
+                <div class="mt-2 flex items-center space-x-4">
+                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                        {{ project.project_id[:8] }}...
+                    </span>
+                    {% if project.submodules %}
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                        {{ project.submodules|length }} submodules
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="mt-4 sm:mt-0 space-x-3">
+                <a href="/{{ project.project_id }}/issues/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                    ➕ Create Issue
+                </a>
+                <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    ← All Projects
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        {% set status_counts = {} %}
+        {% for issue in issues %}
+            {% if status_counts.update({issue.status: status_counts.get(issue.status, 0) + 1}) %}{% endif %}
+        {% endfor %}
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                            <span class="text-white text-sm font-medium">📋</span>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Issues</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ issues|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                            <span class="text-white text-sm font-medium">🔄</span>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">In Progress</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ status_counts.get('in_progress', 0) }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                            <span class="text-white text-sm font-medium">👀</span>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">In Review</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ status_counts.get('review', 0) }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                            <span class="text-white text-sm font-medium">✅</span>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Done</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ status_counts.get('done', 0) }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issues by Module -->
+    {% if project.submodules %}
+    <div class="mb-8">
+        <h2 class="text-lg font-medium text-gray-900 mb-4">Issues by Module</h2>
+        <div class="grid gap-6 lg:grid-cols-2">
+            {% for submodule in project.submodules %}
+            {% set module_issues = [] %}
+            {% for issue in issues %}
+                {% if issue.module == submodule.name %}
+                    {% set _ = module_issues.append(issue) %}
+                {% endif %}
+            {% endfor %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-3">{{ submodule.name }}</h3>
+                    <div class="text-sm text-gray-500 mb-4">{{ submodule.path }}</div>
+
+                    {% if module_issues %}
+                    <div class="space-y-3">
+                        {% for issue in module_issues[:3] %}
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    {% if issue.type == 'feature' %}bg-blue-100 text-blue-800{% endif %}
+                                    {% if issue.type == 'bug' %}bg-red-100 text-red-800{% endif %}
+                                    {% if issue.type == 'refactor' %}bg-purple-100 text-purple-800{% endif %}
+                                    {% if issue.type == 'chore' %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ issue.type }}
+                                </span>
+                                <div>
+                                    <div class="text-sm font-medium">
+                                        <a href="/{{ project.project_id }}/issues/{{ issue.key }}" class="text-blue-600 hover:text-blue-800">
+                                            {{ issue.title }}
+                                        </a>
+                                    </div>
+                                    <div class="text-xs text-gray-500">{{ issue.key }}</div>
+                                </div>
+                            </div>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if issue.status == 'proposed' %}bg-gray-100 text-gray-800{% endif %}
+                                {% if issue.status == 'in_progress' %}bg-yellow-100 text-yellow-800{% endif %}
+                                {% if issue.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
+                                {% if issue.status == 'done' %}bg-green-100 text-green-800{% endif %}
+                                {% if issue.status == 'canceled' %}bg-red-100 text-red-800{% endif %}">
+                                {{ issue.status.replace('_', ' ') }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                        {% if module_issues|length > 3 %}
+                        <div class="text-center text-sm text-gray-500">
+                            +{{ module_issues|length - 3 }} more issues
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-sm text-gray-500 py-4">
+                        No issues in this module
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- All Issues Table -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">All Issues</h2>
+
+            {% if issues %}
+            <div class="overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Issue
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Priority
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Module
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Updated
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for issue in issues %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-3
+                                        {% if issue.type == 'feature' %}bg-blue-100 text-blue-800{% endif %}
+                                        {% if issue.type == 'bug' %}bg-red-100 text-red-800{% endif %}
+                                        {% if issue.type == 'refactor' %}bg-purple-100 text-purple-800{% endif %}
+                                        {% if issue.type == 'chore' %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ issue.type }}
+                                    </span>
+                                    <div>
+                                        <div class="text-sm font-medium">
+                                            <a href="/{{ project.project_id }}/issues/{{ issue.key }}" class="text-blue-600 hover:text-blue-800">
+                                                {{ issue.title }}
+                                            </a>
+                                        </div>
+                                        <div class="text-sm text-gray-500">{{ issue.key }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    {% if issue.status == 'proposed' %}bg-gray-100 text-gray-800{% endif %}
+                                    {% if issue.status == 'in_progress' %}bg-yellow-100 text-yellow-800{% endif %}
+                                    {% if issue.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
+                                    {% if issue.status == 'done' %}bg-green-100 text-green-800{% endif %}
+                                    {% if issue.status == 'canceled' %}bg-red-100 text-red-800{% endif %}">
+                                    {{ issue.status.replace('_', ' ') }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <span class="font-medium">{{ issue.priority }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ issue.module or 'N/A' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ issue.updated_utc | format_datetime('%m/%d %H:%M') }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <div class="text-gray-400 text-lg mb-2">📝</div>
+                <h3 class="text-sm font-medium text-gray-900">No issues yet</h3>
+                <p class="text-sm text-gray-500 mt-1">Issues will appear here when created via the PM MCP tools.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

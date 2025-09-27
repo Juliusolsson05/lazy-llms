@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Projects - Jira-lite PM{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <div class="sm:flex sm:items-center">
+        <div class="sm:flex-auto">
+            <h1 class="text-2xl font-semibold text-gray-900">Projects</h1>
+            <p class="mt-2 text-sm text-gray-700">Manage your development projects with LLM-native tooling.</p>
+        </div>
+    </div>
+
+    {% if projects %}
+    <div class="mt-8 flow-root">
+        <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                    Project
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                    Path
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                    Submodules
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                    Created
+                                </th>
+                                <th scope="col" class="relative px-6 py-3">
+                                    <span class="sr-only">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            {% for project in projects %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="whitespace-nowrap px-6 py-4">
+                                    <div class="flex items-center">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">
+                                                <a href="/{{ project.project_id }}" class="text-primary hover:text-blue-700">
+                                                    {{ project.project_slug }}
+                                                </a>
+                                            </div>
+                                            <div class="text-sm text-gray-500">{{ project.project_id[:16] }}...</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                    <code class="bg-gray-100 px-2 py-1 rounded text-xs">{{ project.absolute_path }}</code>
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                    {% if project.submodules %}
+                                        <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                                            {{ project.submodules|length }} modules
+                                        </span>
+                                    {% else %}
+                                        <span class="text-gray-400">None</span>
+                                    {% endif %}
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                    {{ project.created_utc | format_date }}
+                                </td>
+                                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                    <a href="/{{ project.project_id }}" class="text-primary hover:text-blue-700">
+                                        Dashboard
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="mt-8 text-center">
+        <div class="mx-auto h-12 w-12 text-gray-400">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            </svg>
+        </div>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No projects</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by registering your first project.</p>
+        <div class="mt-6">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
+                <h4 class="text-sm font-medium text-blue-900 mb-2">Quick Start:</h4>
+                <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Run <code class="bg-blue-100 px-1 rounded">make init</code> in your project directory</li>
+                    <li>Run <code class="bg-blue-100 px-1 rounded">make register PORT=1928</code> to register with this server</li>
+                    <li>Start using PM tools via Claude Code MCP</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

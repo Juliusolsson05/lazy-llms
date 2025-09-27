@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}{{ issue.key }}: {{ issue.title }} - {{ project.project_slug }}{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="text-gray-700 hover:text-blue-600">Projects</a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <span class="text-gray-400 mx-2">/</span>
+                    <a href="/{{ project.project_id }}" class="text-gray-700 hover:text-blue-600">{{ project.project_slug }}</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <span class="text-gray-400 mx-2">/</span>
+                    <span class="text-gray-500">{{ issue.key }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Issue Header -->
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if issue.type == 'feature' %}bg-blue-100 text-blue-800{% endif %}
+                        {% if issue.type == 'bug' %}bg-red-100 text-red-800{% endif %}
+                        {% if issue.type == 'refactor' %}bg-purple-100 text-purple-800{% endif %}
+                        {% if issue.type == 'chore' %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ issue.type }}
+                    </span>
+                    <span class="text-lg font-medium text-gray-900">{{ issue.key }}</span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if issue.status == 'proposed' %}bg-gray-100 text-gray-800{% endif %}
+                        {% if issue.status == 'in_progress' %}bg-yellow-100 text-yellow-800{% endif %}
+                        {% if issue.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
+                        {% if issue.status == 'done' %}bg-green-100 text-green-800{% endif %}
+                        {% if issue.status == 'canceled' %}bg-red-100 text-red-800{% endif %}">
+                        {{ issue.status.replace('_', ' ').title() }}
+                    </span>
+                    <span class="text-sm text-gray-500">{{ issue.priority }}</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <a href="/{{ project.project_id }}/issues/{{ issue.key }}/edit"
+                       class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        ✏️ Edit
+                    </a>
+                </div>
+            </div>
+            <h1 class="mt-2 text-2xl font-bold text-gray-900">{{ issue.title }}</h1>
+        </div>
+
+        <!-- Issue Metadata -->
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Module</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ issue.module or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Owner</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ issue.owner or 'Unassigned' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Effort</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ issue.estimated_effort or 'Not estimated' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Complexity</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ issue.complexity or 'Medium' }}</dd>
+                </div>
+                {% if issue.created_utc %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Created</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ issue.created_utc | format_date }}</dd>
+                </div>
+                {% endif %}
+                {% if issue.updated_utc %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Updated</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ issue.updated_utc | format_date }}</dd>
+                </div>
+                {% endif %}
+                {% if issue.branch_hint %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Branch</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono text-xs">{{ issue.branch_hint }}</dd>
+                </div>
+                {% endif %}
+                {% if issue.dependencies %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Dependencies</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ issue.dependencies | join(', ') }}</dd>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column - Description -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Description -->
+            {% if issue.description %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Description</h2>
+                </div>
+                <div class="px-6 py-4 prose prose-sm max-w-none">
+                    {{ render_markdown(issue.description) }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Acceptance Criteria -->
+            {% if issue.acceptance %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Acceptance Criteria</h2>
+                </div>
+                <div class="px-6 py-4">
+                    <ul class="space-y-2">
+                        {% for criterion in issue.acceptance %}
+                        <li class="flex items-start">
+                            <span class="text-green-500 mr-2">✓</span>
+                            <span class="text-sm text-gray-900">{{ criterion }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Tasks -->
+            {% if tasks %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Tasks</h2>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    {% for task in tasks %}
+                    <div class="px-6 py-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-3">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                    {% if task.status == 'todo' %}bg-gray-100 text-gray-800{% endif %}
+                                    {% if task.status == 'doing' %}bg-yellow-100 text-yellow-800{% endif %}
+                                    {% if task.status == 'blocked' %}bg-red-100 text-red-800{% endif %}
+                                    {% if task.status == 'review' %}bg-purple-100 text-purple-800{% endif %}
+                                    {% if task.status == 'done' %}bg-green-100 text-green-800{% endif %}">
+                                    {{ task.status }}
+                                </span>
+                                <span class="text-sm font-medium text-gray-900">{{ task.task_id }}</span>
+                            </div>
+                            {% if task.checklist %}
+                            {% set completed = task.checklist | selectattr('done', 'equalto', true) | list | length %}
+                            <span class="text-xs text-gray-500">{{ completed }}/{{ task.checklist | length }} complete</span>
+                            {% endif %}
+                        </div>
+                        <h3 class="text-sm font-medium text-gray-900 mb-2">{{ task.title }}</h3>
+                        {% if task.notes %}
+                        <p class="text-sm text-gray-600 mb-2">{{ task.notes }}</p>
+                        {% endif %}
+                        {% if task.checklist %}
+                        <ul class="space-y-1">
+                            {% for item in task.checklist %}
+                            <li class="flex items-center">
+                                {% if item.done %}
+                                <span class="text-green-500 mr-2">✅</span>
+                                <span class="text-sm text-gray-500 line-through">{{ item.text }}</span>
+                                {% else %}
+                                <span class="text-gray-400 mr-2">⬜</span>
+                                <span class="text-sm text-gray-900">{{ item.text }}</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column - Sidebar -->
+        <div class="space-y-6">
+            <!-- Quick Actions -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Quick Actions</h2>
+                </div>
+                <div class="px-6 py-4 space-y-3">
+                    <a href="/{{ project.project_id }}/issues/{{ issue.key }}/edit"
+                       class="block w-full text-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Edit Issue
+                    </a>
+                    <button class="block w-full text-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        Create Task
+                    </button>
+                    <button class="block w-full text-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                        Log Work
+                    </button>
+                </div>
+            </div>
+
+            <!-- Git Information -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Git Integration</h2>
+                </div>
+                <div class="px-6 py-4 space-y-3">
+                    {% if issue.branch_hint %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Branch</label>
+                        <code class="block mt-1 p-2 bg-gray-100 rounded text-xs">{{ issue.branch_hint }}</code>
+                    </div>
+                    {% endif %}
+                    {% if issue.commit_preamble %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Commit Prefix</label>
+                        <code class="block mt-1 p-2 bg-gray-100 rounded text-xs">{{ issue.commit_preamble }}</code>
+                    </div>
+                    {% endif %}
+                    {% if issue.commit_trailer %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Commit Trailer</label>
+                        <code class="block mt-1 p-2 bg-gray-100 rounded text-xs">{{ issue.commit_trailer }}</code>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            {% if worklogs %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Recent Activity</h2>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    {% for worklog in worklogs[:5] %}
+                    <div class="px-6 py-4">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {{ worklog.activity }}
+                            </span>
+                            <span class="text-xs text-gray-500">{{ worklog.timestamp_utc | format_datetime }}</span>
+                        </div>
+                        <p class="text-sm text-gray-900">{{ worklog.summary }}</p>
+                        {% if worklog.artifacts %}
+                        <div class="mt-2 space-y-1">
+                            {% for artifact in worklog.artifacts %}
+                            <div class="text-xs text-gray-600">
+                                {% if artifact.type == 'commit' %}
+                                🔗 <code>{{ artifact.sha[:7] }}</code> {{ artifact.subject }}
+                                {% elif artifact.type == 'file' %}
+                                📄 {{ artifact.path }}
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Links -->
+            {% if issue.links %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Related Links</h2>
+                </div>
+                <div class="px-6 py-4 space-y-2">
+                    {% for link_name, link_url in issue.links.items() %}
+                    <div>
+                        <a href="{{ link_url }}" class="text-sm text-blue-600 hover:text-blue-800">
+                            {{ link_name.replace('_', ' ').title() }}
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.prose h1 { @apply text-2xl font-bold text-gray-900 mb-4; }
+.prose h2 { @apply text-xl font-semibold text-gray-900 mb-3; }
+.prose h3 { @apply text-lg font-medium text-gray-900 mb-2; }
+.prose h4 { @apply text-base font-medium text-gray-900 mb-2; }
+.prose p { @apply mb-4 text-gray-700; }
+.prose ul { @apply list-disc pl-6 mb-4; }
+.prose ol { @apply list-decimal pl-6 mb-4; }
+.prose li { @apply mb-1; }
+.prose code { @apply bg-gray-100 px-1 rounded text-sm; }
+.prose pre { @apply bg-gray-100 p-4 rounded text-sm overflow-x-auto; }
+.prose blockquote { @apply border-l-4 border-gray-300 pl-4 italic text-gray-600; }
+.prose table { @apply w-full border-collapse border border-gray-300; }
+.prose th { @apply border border-gray-300 px-4 py-2 bg-gray-100 font-medium; }
+.prose td { @apply border border-gray-300 px-4 py-2; }
+</style>
+{% endblock %}

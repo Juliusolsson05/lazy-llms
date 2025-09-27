@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Data files (will be mounted as volumes)
+data/*.json
+data/*.db
+data/backup/
+
+# Logs
+*.log
+logs/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation drafts
+*.md.bak
+docs/drafts/
+
+# Test files
+tests/
+pytest.ini
+.coverage
+htmlcov/
+
+# Development
+.env
+.env.local

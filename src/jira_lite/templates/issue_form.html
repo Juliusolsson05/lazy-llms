@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Issue - {{ project.project_slug }}{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="text-gray-700 hover:text-blue-600">Projects</a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <span class="text-gray-400 mx-2">/</span>
+                    <a href="/{{ project.project_id }}" class="text-gray-700 hover:text-blue-600">{{ project.project_slug }}</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <span class="text-gray-400 mx-2">/</span>
+                    <span class="text-gray-500">{{ action }} Issue</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="mb-4 p-4 rounded-md {% if category == 'success' %}bg-green-50 text-green-800{% else %}bg-red-50 text-red-800{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Form Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">{{ action }} Issue</h1>
+        <p class="mt-2 text-sm text-gray-600">
+            {% if action == 'Create' %}
+            Create a new issue with comprehensive documentation for LLM-native project management.
+            {% else %}
+            Edit issue details and documentation.
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Main Form -->
+    <form method="POST" class="space-y-8">
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Basic Information</h2>
+            </div>
+            <div class="px-6 py-4 space-y-6">
+                <!-- Title -->
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700">Title *</label>
+                    <input type="text"
+                           name="title"
+                           id="title"
+                           required
+                           value="{{ issue.title if issue else '' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                           placeholder="Brief, descriptive title for the issue">
+                </div>
+
+                <!-- Type and Priority -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                    <div>
+                        <label for="type" class="block text-sm font-medium text-gray-700">Type *</label>
+                        <select name="type"
+                                id="type"
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="feature" {% if issue and issue.type == 'feature' %}selected{% endif %}>Feature</option>
+                            <option value="bug" {% if issue and issue.type == 'bug' %}selected{% endif %}>Bug</option>
+                            <option value="refactor" {% if issue and issue.type == 'refactor' %}selected{% endif %}>Refactor</option>
+                            <option value="chore" {% if issue and issue.type == 'chore' %}selected{% endif %}>Chore</option>
+                            <option value="spike" {% if issue and issue.type == 'spike' %}selected{% endif %}>Spike</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="priority" class="block text-sm font-medium text-gray-700">Priority *</label>
+                        <select name="priority"
+                                id="priority"
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="P1" {% if issue and issue.priority == 'P1' %}selected{% endif %}>P1 - Critical</option>
+                            <option value="P2" {% if issue and issue.priority == 'P2' %}selected{% endif %}>P2 - High</option>
+                            <option value="P3" {% if issue and issue.priority == 'P3' %}selected{% endif %}>P3 - Medium</option>
+                            <option value="P4" {% if issue and issue.priority == 'P4' %}selected{% endif %}>P4 - Low</option>
+                            <option value="P5" {% if issue and issue.priority == 'P5' %}selected{% endif %}>P5 - Nice to have</option>
+                        </select>
+                    </div>
+
+                    {% if issue %}
+                    <div>
+                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                        <select name="status"
+                                id="status"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="proposed" {% if issue.status == 'proposed' %}selected{% endif %}>Proposed</option>
+                            <option value="in_progress" {% if issue.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                            <option value="review" {% if issue.status == 'review' %}selected{% endif %}>In Review</option>
+                            <option value="done" {% if issue.status == 'done' %}selected{% endif %}>Done</option>
+                            <option value="canceled" {% if issue.status == 'canceled' %}selected{% endif %}>Canceled</option>
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Module and Metadata -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                    <div>
+                        <label for="module" class="block text-sm font-medium text-gray-700">Module</label>
+                        <select name="module"
+                                id="module"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="">Select module...</option>
+                            {% for submodule in project.submodules %}
+                            <option value="{{ submodule.name }}" {% if issue and issue.module == submodule.name %}selected{% endif %}>
+                                {{ submodule.name }}
+                            </option>
+                            {% endfor %}
+                            <option value="docs" {% if issue and issue.module == 'docs' %}selected{% endif %}>docs</option>
+                            <option value="core" {% if issue and issue.module == 'core' %}selected{% endif %}>core</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="estimated_effort" class="block text-sm font-medium text-gray-700">Estimated Effort</label>
+                        <input type="text"
+                               name="estimated_effort"
+                               id="estimated_effort"
+                               value="{{ issue.estimated_effort if issue else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                               placeholder="e.g., 1-2 weeks">
+                    </div>
+
+                    <div>
+                        <label for="complexity" class="block text-sm font-medium text-gray-700">Complexity</label>
+                        <select name="complexity"
+                                id="complexity"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="Low" {% if issue and issue.complexity == 'Low' %}selected{% endif %}>Low</option>
+                            <option value="Medium" {% if issue and issue.complexity == 'Medium' %}selected{% endif %}>Medium</option>
+                            <option value="High" {% if issue and issue.complexity == 'High' %}selected{% endif %}>High</option>
+                            <option value="Very High" {% if issue and issue.complexity == 'Very High' %}selected{% endif %}>Very High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="owner" class="block text-sm font-medium text-gray-700">Owner</label>
+                    <input type="text"
+                           name="owner"
+                           id="owner"
+                           value="{{ issue.owner if issue else 'agent:claude-code' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                           placeholder="agent:claude-code">
+                </div>
+            </div>
+        </div>
+
+        <!-- Description Section -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Description & Documentation</h2>
+                <p class="mt-1 text-sm text-gray-600">
+                    Provide comprehensive documentation using Markdown. This is where LLM-generated content shines.
+                </p>
+            </div>
+            <div class="px-6 py-4">
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700">
+                        Detailed Description
+                        <span class="text-gray-500">(Markdown supported)</span>
+                    </label>
+                    <textarea name="description"
+                              id="description"
+                              rows="20"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono"
+                              placeholder="# Overview
+
+Provide a comprehensive description of the issue including:
+
+## Business Requirements
+- What problem does this solve?
+- Who are the stakeholders?
+- What are the success criteria?
+
+## Technical Analysis
+- Technical approach and considerations
+- Architecture decisions
+- Technology choices
+
+## Implementation Plan
+- Step-by-step implementation approach
+- Phases and milestones
+- Dependencies
+
+## Risk Assessment
+- Potential risks and mitigation strategies
+- Complexity analysis
+
+Use markdown formatting for better readability.">{{ issue.description if issue else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acceptance Criteria -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Acceptance Criteria</h2>
+                <p class="mt-1 text-sm text-gray-600">
+                    List the criteria that must be met for this issue to be considered complete (one per line).
+                </p>
+            </div>
+            <div class="px-6 py-4">
+                <div>
+                    <label for="acceptance" class="block text-sm font-medium text-gray-700">Acceptance Criteria</label>
+                    <textarea name="acceptance"
+                              id="acceptance"
+                              rows="8"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              placeholder="Feature works as designed&#10;All tests pass&#10;Documentation is updated&#10;Performance requirements met&#10;Security review completed">{% if issue and issue.acceptance %}{% for criterion in issue.acceptance %}{{ criterion }}
+{% endfor %}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex justify-end space-x-3">
+            <a href="{% if issue %}/{{ project.project_id }}/issues/{{ issue.key }}{% else %}/{{ project.project_id }}{% endif %}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Cancel
+            </a>
+            <button type="submit"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                {{ action }} Issue
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Auto-resize textarea
+document.getElementById('description').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = this.scrollHeight + 'px';
+});
+
+// Live preview helper
+document.getElementById('title').addEventListener('input', function() {
+    const type = document.getElementById('type').value;
+    const title = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    // Could add live branch name preview here
+});
+</script>
+{% endblock %}

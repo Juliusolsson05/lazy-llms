@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  jira-lite:
+    build: .
+    ports:
+      - "1929:1929"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      # Mount source code for development
+      - ./src:/app/src
+      - ./docs:/app/docs
+      # Persist SQLite database
+      - jira_lite_data:/app/data
+      # Mount project data for MCP integration
+      - ./test-projects:/app/projects:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1929/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Add a reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - jira-lite
+    profiles:
+      - production
+
+volumes:
+  jira_lite_data:
+    driver: local
+
+networks:
+  default:
+    name: llm-pm-network
