@@ -35,4 +35,4 @@ pm_log_work             # Track progress
 pm_commit               # Save changes
 
 Database: /Users/juliusolsson/Desktop/Development/lazy-llms/data/jira_lite.db
-Projects: 4 found with 13 issues, 7 tasks, 16 worklogs
+Project: lazy-llms-test with real PM tracking
