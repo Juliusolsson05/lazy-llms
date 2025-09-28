@@ -65,6 +65,11 @@ This PM system is designed for LLMs as first-class citizens. Unlike human-orient
 - **pm_init_project** - Initializes or updates project registration in the system
 - **pm_register_project** - Registers project with web UI server
 
+### Submodule Management Tools
+- **pm_add_submodule** - Add a new submodule to an existing project for component organization
+- **pm_remove_submodule** - Remove a submodule and optionally reassign its issues
+- **pm_list_submodules** - List all project submodules with optional issue statistics
+
 ## Core Concepts
 
 ### Issues
@@ -163,6 +168,7 @@ Rich work items containing:
 - `technical_approach` - Implementation strategy
 - `estimated_effort` - Time estimate (e.g., "2-3 days")
 - `complexity` - Low/Medium/High/Very High
+- `submodule` - Specific submodule (overrides module if provided)
 
 ### Logging Work (pm_log_work)
 **Required:**
@@ -175,6 +181,24 @@ Rich work items containing:
 - `artifacts` - List of files/commits/documents
 - `blockers` - Any impediments encountered
 - `decisions` - Technical decisions made
+
+### Managing Submodules (pm_add_submodule)
+**Required:**
+- `name` - Submodule name (e.g., 'learnio-backend')
+- `path` - Relative path to submodule from project root
+
+**Optional:**
+- `project_id` - Project ID (uses default if not specified)
+- `is_separate_repo` - Whether submodule has its own git repository
+- `manage_separately` - Whether to manage as separate project
+
+### Removing Submodules (pm_remove_submodule)
+**Required:**
+- `name` - Submodule name to remove
+
+**Optional:**
+- `project_id` - Project ID (uses default if not specified)
+- `reassign_issues_to` - Module to reassign existing issues to
 
 ## System Architecture
 

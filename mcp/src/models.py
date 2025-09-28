@@ -227,6 +227,10 @@ class CreateIssueInput(BaseModel):
         default=None,
         description="Module/component this issue belongs to"
     )
+    submodule: Optional[str] = Field(
+        default=None,
+        description="Specific submodule (e.g., 'learnio-backend') that overrides module field if provided"
+    )
     acceptance_criteria: List[str] = Field(
         default_factory=list,
         description="List of specific, measurable acceptance criteria"
@@ -842,6 +846,51 @@ class SuggestNextWorkInput(BaseModel):
         description="Avoid high-complexity issues"
     )
 
+class AddSubmoduleInput(BaseModel):
+    """Input for pm_add_submodule tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project to add submodule to. Uses default if not specified."
+    )
+    name: str = Field(
+        description="Submodule name (e.g., 'learnio-backend')"
+    )
+    path: str = Field(
+        description="Relative path to submodule from project root (e.g., 'backend', 'src/frontend')"
+    )
+    is_separate_repo: bool = Field(
+        default=False,
+        description="Whether this submodule has its own git repository"
+    )
+    manage_separately: bool = Field(
+        default=False,
+        description="Whether to manage this submodule as a separate project"
+    )
+
+class RemoveSubmoduleInput(BaseModel):
+    """Input for pm_remove_submodule tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project to remove submodule from. Uses default if not specified."
+    )
+    name: str = Field(
+        description="Submodule name to remove"
+    )
+    reassign_issues_to: Optional[str] = Field(
+        default=None,
+        description="Module to reassign existing issues to (or null to clear module)"
+    )
+
+class ListSubmodulesInput(BaseModel):
+    """Input for pm_list_submodules tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project to list submodules for. Uses default if not specified."
+    )
+    include_stats: bool = Field(
+        default=True,
+        description="Include issue statistics for each submodule"
+    )
 
 # =============== Error/Result Models ===============
 

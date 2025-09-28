@@ -168,6 +168,13 @@
                         <span class="text-sm text-gray-700 dark:text-gray-300">Show Completed</span>
                     </label>
 
+                    {% if project.submodules %}
+                    <!-- Swimlane Toggle for Submodules -->
+                    <button id="toggle-swimlanes" class="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-dark-border rounded hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                        🏊 Swimlanes
+                    </button>
+                    {% endif %}
+
                     <!-- Clear Filters -->
                     <button id="clear-filters" class="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-dark-border rounded hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
                         Clear Filters
@@ -379,6 +386,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Clear filters button
     document.getElementById('clear-filters').addEventListener('click', clearFilters);
+
+    // Swimlane toggle button
+    const swimlaneBtn = document.getElementById('toggle-swimlanes');
+    if (swimlaneBtn) {
+        swimlaneBtn.addEventListener('click', function() {
+            const isActive = this.classList.contains('active');
+            if (isActive) {
+                // Switch back to standard view
+                this.classList.remove('active', 'bg-blue-600', 'text-white');
+                this.classList.add('text-gray-700', 'dark:text-gray-300');
+                showStandardView();
+            } else {
+                // Switch to swimlane view
+                this.classList.add('active', 'bg-blue-600', 'text-white');
+                this.classList.remove('text-gray-700', 'dark:text-gray-300');
+                showSwimlaneView();
+            }
+        });
+    }
 
     // Auto-refresh functionality
     let refreshCountdown = 30;
@@ -674,6 +700,139 @@ document.addEventListener('keydown', function(e) {
         refreshBoard();
     }
 });
+
+// Swimlane view functions
+function showSwimlaneView() {
+    // Hide standard kanban board
+    const standardBoard = document.querySelector('.flex.gap-4');
+    standardBoard.style.display = 'none';
+
+    // Create or show swimlane view
+    let swimlaneContainer = document.getElementById('swimlane-view');
+    if (!swimlaneContainer) {
+        swimlaneContainer = createSwimlaneView();
+        standardBoard.parentNode.insertBefore(swimlaneContainer, standardBoard.nextSibling);
+    } else {
+        swimlaneContainer.style.display = 'block';
+    }
+}
+
+function showStandardView() {
+    // Show standard kanban board
+    const standardBoard = document.querySelector('.flex.gap-4');
+    standardBoard.style.display = '';
+
+    // Hide swimlane view
+    const swimlaneContainer = document.getElementById('swimlane-view');
+    if (swimlaneContainer) {
+        swimlaneContainer.style.display = 'none';
+    }
+}
+
+function createSwimlaneView() {
+    const container = document.createElement('div');
+    container.id = 'swimlane-view';
+    container.className = 'overflow-x-auto';
+
+    // Get all submodules and issues
+    const submodules = {{ project.submodules|tojson if project.submodules else '[]' }};
+    const issues = Array.from(document.querySelectorAll('.kanban-card'));
+
+    let html = '<div class="min-w-fit">';
+
+    // Create swimlane for each submodule
+    submodules.forEach(submodule => {
+        html += `
+            <div class="mb-6 border-b border-gray-200 dark:border-dark-border pb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 px-2 flex items-center">
+                    <span class="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-sm mr-3">
+                        ${submodule.name}
+                    </span>
+                    <span class="text-sm text-gray-500">${submodule.path}</span>
+                </h3>
+                <div class="flex gap-4 px-2">
+                    <div class="flex-shrink-0 w-72">
+                        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 border border-gray-200 dark:border-dark-border">
+                            <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2">📝 Proposed</h4>
+                            <div class="swimlane-column space-y-2 min-h-[80px]" data-status="proposed" data-module="${submodule.name}"></div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 w-72">
+                        <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
+                            <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2">⚡ In Progress</h4>
+                            <div class="swimlane-column space-y-2 min-h-[80px]" data-status="in_progress" data-module="${submodule.name}"></div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 w-72">
+                        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
+                            <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2">🔍 Review</h4>
+                            <div class="swimlane-column space-y-2 min-h-[80px]" data-status="review" data-module="${submodule.name}"></div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 w-72">
+                        <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
+                            <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2">✅ Done</h4>
+                            <div class="swimlane-column space-y-2 min-h-[80px]" data-status="done" data-module="${submodule.name}"></div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 w-72">
+                        <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 border border-red-200 dark:border-red-800">
+                            <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2">🚧 Blocked</h4>
+                            <div class="swimlane-column space-y-2 min-h-[80px]" data-status="blocked" data-module="${submodule.name}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Distribute cards to swimlanes
+    issues.forEach(card => {
+        const module = card.dataset.module;
+        const status = card.dataset.status;
+        if (module && status !== 'archived') {
+            const swimlaneColumn = container.querySelector(`.swimlane-column[data-status="${status}"][data-module="${module}"]`);
+            if (swimlaneColumn) {
+                const clonedCard = card.cloneNode(true);
+                swimlaneColumn.appendChild(clonedCard);
+            }
+        }
+    });
+
+    // Initialize drag and drop for swimlanes
+    container.querySelectorAll('.swimlane-column').forEach(column => {
+        new Sortable(column, {
+            group: 'swimlane',
+            animation: 150,
+            ghostClass: 'opacity-50',
+            onEnd: function(evt) {
+                const issueKey = evt.item.dataset.issueKey;
+                const newStatus = evt.to.dataset.status;
+                const newModule = evt.to.dataset.module;
+                updateIssueStatus(issueKey, newStatus);
+                // Also update the card in the standard view
+                syncCardToStandardView(issueKey, newStatus);
+            }
+        });
+    });
+
+    return container;
+}
+
+function syncCardToStandardView(issueKey, newStatus) {
+    // Find the card in standard view and move it to the correct column
+    const standardCard = document.querySelector(`.kanban-column .kanban-card[data-issue-key="${issueKey}"]`);
+    if (standardCard) {
+        const targetColumn = document.querySelector(`.kanban-column[data-status="${newStatus}"]`);
+        if (targetColumn && !targetColumn.contains(standardCard)) {
+            targetColumn.appendChild(standardCard);
+            standardCard.dataset.status = newStatus;
+        }
+    }
+}
 
 // Custom styles for dragging
 const style = document.createElement('style');

@@ -991,8 +991,22 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
                 project_dict = PMDatabase._project_to_dict(project) if project else {}
                 project_path = Path(project_dict['absolute_path']) if project_dict else Path.cwd()
 
+            # Check if issue belongs to a submodule and adjust working path
+            working_path = project_path
+            project_dict = PMDatabase._project_to_dict(project)
+            if issue.module and project_dict.get('metadata', {}).get('submodules'):
+                submodules = project_dict['metadata']['submodules']
+                for submodule in submodules:
+                    if submodule['name'] == issue.module:
+                        # This issue belongs to a specific submodule
+                        submodule_path = project_path / submodule['path']
+                        if submodule_path.exists() and (submodule_path / '.git').exists():
+                            # Submodule has its own git repo
+                            working_path = submodule_path
+                        break
+
             # Ensure git setup
-            setup_success = asyncio.run(ensure_project_git_setup(project_path))
+            setup_success = asyncio.run(ensure_project_git_setup(working_path))
             if not setup_success:
                 return standard_response(
                     success=False,
@@ -1001,7 +1015,7 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
                 )
 
             # Checkout base branch safely
-            git_result = run_git_command_sync(['checkout', input.base_branch], cwd=project_path)
+            git_result = run_git_command_sync(['checkout', input.base_branch], cwd=working_path)
             if not git_result['success']:
                 return standard_response(
                     success=False,
@@ -1011,11 +1025,11 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
                 )
 
             # Pull latest changes (handle gracefully if no remote)
-            pull_result = run_git_command_sync(['pull'], cwd=project_path)
+            pull_result = run_git_command_sync(['pull'], cwd=working_path)
             # Don't fail on pull errors - might be offline or no remote
 
             # Create new branch
-            git_result = run_git_command_sync(['checkout', '-b', branch_name], cwd=project_path)
+            git_result = run_git_command_sync(['checkout', '-b', branch_name], cwd=working_path)
 
             if git_result['success']:
                 # Update issue with branch info
@@ -1107,8 +1121,22 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
                 project_dict = PMDatabase._project_to_dict(project) if project else {}
                 project_path = Path(project_dict['absolute_path']) if project_dict else Path.cwd()
 
+            # Check if issue belongs to a submodule and adjust working path
+            working_path = project_path
+            project_dict = PMDatabase._project_to_dict(project)
+            if issue.module and project_dict.get('metadata', {}).get('submodules'):
+                submodules = project_dict['metadata']['submodules']
+                for submodule in submodules:
+                    if submodule['name'] == issue.module:
+                        # This issue belongs to a specific submodule
+                        submodule_path = project_path / submodule['path']
+                        if submodule_path.exists() and (submodule_path / '.git').exists():
+                            # Submodule has its own git repo
+                            working_path = submodule_path
+                        break
+
             # Ensure git identity is set
-            setup_success = asyncio.run(ensure_project_git_setup(project_path))
+            setup_success = asyncio.run(ensure_project_git_setup(working_path))
             if not setup_success:
                 return standard_response(
                     success=False,
@@ -1121,7 +1149,7 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
             # Stage files if specified
             if input.files:
                 for file in input.files:
-                    git_result = run_git_command_sync(['add', file], cwd=project_path)
+                    git_result = run_git_command_sync(['add', file], cwd=working_path)
                     if not git_result['success']:
                         return standard_response(
                             success=False,
@@ -1130,18 +1158,18 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
                         )
             else:
                 # Stage all changes
-                git_result = run_git_command_sync(['add', '-A'], cwd=project_path)
+                git_result = run_git_command_sync(['add', '-A'], cwd=working_path)
 
             # Create commit
             commit_args = ['commit', '-m', commit_message]
             if input.amend:
                 commit_args.append('--amend')
 
-            git_result = run_git_command_sync(commit_args, cwd=project_path)
+            git_result = run_git_command_sync(commit_args, cwd=working_path)
 
             if git_result['success']:
                 # Get commit SHA
-                sha_result = run_git_command_sync(['rev-parse', 'HEAD'], cwd=project_path)
+                sha_result = run_git_command_sync(['rev-parse', 'HEAD'], cwd=working_path)
                 commit_sha = sha_result['output'][:7] if sha_result['success'] else 'unknown'
 
                 # Log commit as work activity if requested
@@ -1767,6 +1795,240 @@ def pm_register_project(server_url: str = "http://127.0.0.1:1929",
         )
 
 # =============== Critical Missing Tools ===============
+
+@mcp.tool()
+@strict_project_scope
+def pm_add_submodule(input: AddSubmoduleInput) -> Dict[str, Any]:
+    """
+    Add a new submodule to an existing project for better component organization.
+    Updates project metadata to include the new submodule configuration.
+    """
+    try:
+        with DatabaseSession():
+            # Get project
+            pid = _require_project_id(input.project_id)
+            project = PMDatabase.get_project(pid)
+            if not project:
+                return standard_response(
+                    success=False,
+                    message=f"Project {pid} not found"
+                )
+
+            # Get current project metadata
+            project_dict = PMDatabase._project_to_dict(project)
+            metadata = project_dict.get('metadata', {})
+            submodules = metadata.get('submodules', [])
+
+            # Check if submodule already exists
+            for sub in submodules:
+                if sub['name'] == input.name:
+                    return standard_response(
+                        success=False,
+                        message=f"Submodule '{input.name}' already exists",
+                        hints=["Use a different name", "Remove existing submodule first"]
+                    )
+
+            # Construct absolute path for the submodule
+            project_path = Path(project.absolute_path)
+            submodule_path = project_path / input.path
+
+            # Check if path exists
+            if not submodule_path.exists():
+                submodule_path.mkdir(parents=True, exist_ok=True)
+
+            # Add new submodule
+            new_submodule = {
+                'name': input.name,
+                'path': input.path,
+                'absolute_path': str(submodule_path),
+                'is_separate_repo': input.is_separate_repo,
+                'manage_separately': input.manage_separately
+            }
+            submodules.append(new_submodule)
+
+            # Update metadata
+            metadata['submodules'] = submodules
+            project.metadata = json.dumps(metadata)
+            project.save()
+
+            return standard_response(
+                success=True,
+                message=f"Submodule '{input.name}' added to project",
+                data={
+                    "submodule": new_submodule,
+                    "total_submodules": len(submodules)
+                },
+                hints=[
+                    f"pm_create_issue --submodule {input.name} to create issues for this submodule",
+                    f"pm_list_issues --submodule {input.name} to filter issues"
+                ]
+            )
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to add submodule: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}}
+        )
+
+@mcp.tool()
+@strict_project_scope
+def pm_remove_submodule(input: RemoveSubmoduleInput) -> Dict[str, Any]:
+    """
+    Remove a submodule from a project.
+    Optionally reassigns issues from the removed submodule to another module.
+    """
+    try:
+        with DatabaseSession():
+            # Get project
+            pid = _require_project_id(input.project_id)
+            project = PMDatabase.get_project(pid)
+            if not project:
+                return standard_response(
+                    success=False,
+                    message=f"Project {pid} not found"
+                )
+
+            # Get current project metadata
+            project_dict = PMDatabase._project_to_dict(project)
+            metadata = project_dict.get('metadata', {})
+            submodules = metadata.get('submodules', [])
+
+            # Find submodule to remove
+            found = False
+            new_submodules = []
+            for sub in submodules:
+                if sub['name'] == input.name:
+                    found = True
+                else:
+                    new_submodules.append(sub)
+
+            if not found:
+                return standard_response(
+                    success=False,
+                    message=f"Submodule '{input.name}' not found",
+                    hints=["pm_list_submodules to see available submodules"]
+                )
+
+            # Update issues if needed
+            issues_updated = 0
+            if input.reassign_issues_to is not None:
+                # Find all issues with this module
+                issues = PMDatabase.find_issues(pid, module=input.name)
+                for issue in issues:
+                    issue.module = input.reassign_issues_to
+                    issue.save()
+                    issues_updated += 1
+
+            # Update metadata
+            metadata['submodules'] = new_submodules
+            project.metadata = json.dumps(metadata)
+            project.save()
+
+            return standard_response(
+                success=True,
+                message=f"Submodule '{input.name}' removed from project",
+                data={
+                    "removed": input.name,
+                    "issues_reassigned": issues_updated,
+                    "reassigned_to": input.reassign_issues_to,
+                    "remaining_submodules": len(new_submodules)
+                }
+            )
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to remove submodule: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}}
+        )
+
+@mcp.tool()
+@strict_project_scope
+def pm_list_submodules(input: ListSubmodulesInput) -> Dict[str, Any]:
+    """
+    List all submodules in a project with optional statistics.
+    Shows submodule configuration and issue distribution.
+    """
+    try:
+        with DatabaseSession():
+            # Get project
+            pid = _require_project_id(input.project_id)
+            project = PMDatabase.get_project(pid)
+            if not project:
+                return standard_response(
+                    success=False,
+                    message=f"Project {pid} not found"
+                )
+
+            # Get project metadata
+            project_dict = PMDatabase._project_to_dict(project)
+            metadata = project_dict.get('metadata', {})
+            submodules = metadata.get('submodules', [])
+
+            if not submodules:
+                return standard_response(
+                    success=True,
+                    message="No submodules configured for this project",
+                    hints=[
+                        "pm_add_submodule to add a new submodule",
+                        "pm_init_project to auto-detect submodules"
+                    ]
+                )
+
+            # Add statistics if requested
+            if input.include_stats:
+                for submodule in submodules:
+                    # Get issue counts for this submodule
+                    issues = PMDatabase.find_issues(pid, module=submodule['name'])
+
+                    # Calculate stats
+                    stats = {
+                        'total_issues': len(issues),
+                        'by_status': {},
+                        'by_priority': {},
+                        'completion_rate': 0.0
+                    }
+
+                    for issue in issues:
+                        # Status counts
+                        status = issue.status
+                        stats['by_status'][status] = stats['by_status'].get(status, 0) + 1
+
+                        # Priority counts
+                        priority = issue.priority
+                        stats['by_priority'][priority] = stats['by_priority'].get(priority, 0) + 1
+
+                    # Calculate completion rate
+                    done_count = stats['by_status'].get('done', 0) + stats['by_status'].get('archived', 0)
+                    if stats['total_issues'] > 0:
+                        stats['completion_rate'] = round(done_count / stats['total_issues'] * 100, 1)
+
+                    submodule['stats'] = stats
+
+            return standard_response(
+                success=True,
+                message=f"Found {len(submodules)} submodules",
+                data={
+                    "submodules": submodules,
+                    "count": len(submodules),
+                    "project": {
+                        "id": project_dict['project_id'],
+                        "slug": project_dict['project_slug'],
+                        "path": project_dict['absolute_path']
+                    }
+                }
+            )
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to list submodules: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}}
+        )
 
 @mcp.tool()
 def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
