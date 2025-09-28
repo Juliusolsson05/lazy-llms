@@ -1870,5 +1870,88 @@ def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify project exists"]
         )
 
+@mcp.tool()
+def pm_reminder() -> Dict[str, Any]:
+    """
+    Get helpful reminders about using the PM system properly.
+    This tool helps LLM agents remember to follow proper PM workflows during longer sessions.
+    Returns best practices and workflow reminders for consistent PM usage.
+    """
+    try:
+        reminders = """# PM System Workflow Reminders
+
+## 🎯 Core Philosophy
+**When developing, ALWAYS think about reporting and documenting progress from the PM perspective.**
+
+## 📝 Essential Reminders
+
+### 1. Always Use PM Tools Throughout Work
+- **Start work properly**: Use `pm_start_work` when beginning an issue
+- **Log progress regularly**: Use `pm_log_work` to document what you're doing
+- **Update status**: Use `pm_update_status` when moving between stages
+
+### 2. Use PM-Specific Git Commands
+- **Always use `pm_commit`** instead of regular git commit
+  - It adds proper PM trailers and links to issues
+  - Example: `pm_commit --issue-key PROJ-001 --message "feat: add auth"`
+- **Create branches with PM**: Use `pm_create_branch` for consistent naming
+
+### 3. Document Everything
+- **Log work regularly**: Don't wait until the end - log as you go
+  - After implementing a feature: `pm_log_work --activity code`
+  - After fixing a bug: `pm_log_work --activity debug`
+  - When blocked: `pm_log_work --activity blocked`
+- **Include artifacts**: Reference files, decisions, and blockers in logs
+
+### 4. Status Updates Are Critical
+- **Proposed** → **In Progress**: When starting work
+- **In Progress** → **Review**: When ready for review
+- **Review** → **Done**: After approval and merge
+- **Any** → **Blocked**: When encountering blockers
+
+### 5. Break Down Complex Work
+- Use `pm_create_task` to split issues into manageable pieces
+- Track progress on individual tasks with `pm_update_task`
+
+## 🚀 Quick Workflow Checklist
+
+Before starting work:
+✅ `pm_status` - Check project health
+✅ `pm_my_queue` - Get your prioritized work
+✅ `pm_get_issue --issue-key XXX` - Understand the full context
+
+During work:
+✅ `pm_start_work --issue-key XXX` - Mark as in progress
+✅ `pm_log_work` - Document progress (multiple times!)
+✅ `pm_commit` - Use PM commits, not regular git
+
+After completing:
+✅ `pm_update_status --status done` - Mark complete
+✅ `pm_log_work --activity review` - Log final summary
+
+## 💡 Pro Tips
+- Call `pm_reminder` periodically during long sessions
+- Use `pm_docs` for detailed command documentation
+- Run `pm_daily_standup` to generate status reports
+- Check `pm_blocked_issues` to help unblock work
+
+Remember: **The PM system is your development companion, not an afterthought!**"""
+
+        return ok("PM workflow reminders", {
+            "reminders": reminders,
+            "last_reminder": datetime.utcnow().isoformat() + 'Z'
+        }, hints=[
+            "Call pm_reminder periodically to maintain PM discipline",
+            "Use pm_docs for detailed command reference",
+            "Always prefer PM tools over direct git/file operations"
+        ])
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to get reminders: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}}
+        )
+
 if __name__ == "__main__":
     sys.exit(main())

@@ -58,11 +58,42 @@ def create_app(config_class=Config):
         """Kanban board view with drag-and-drop interface"""
         try:
             dashboard_data = pm_service.get_project_dashboard(project_id)
-            return render_template('kanban.html',
-                                 project=dashboard_data['project'],
-                                 issues=dashboard_data['issues'])
+            archived_count = IssueRepository.count_archived(project_id)
+            return render_template(
+                'kanban.html',
+                project=dashboard_data['project'],
+                issues=dashboard_data['issues'],
+                archived_count=archived_count
+            )
         except ValueError:
             abort(404)
+
+    @app.route('/<project_id>/archive')
+    def archive(project_id):
+        """Dedicated view for archived issues"""
+        project = ProjectRepository.find_by_id(project_id)
+        if not project:
+            abort(404)
+
+        archived_issues = IssueRepository.find_archived(project_id)
+        archived_dicts = []
+        for issue in archived_issues:
+            issue_dict = issue.to_dict()
+            issue_dict.update({
+                'description': issue.description,
+                'acceptance': issue.acceptance,
+                'estimated_effort': issue.estimated_effort,
+                'complexity': issue.complexity,
+                'created_iso': issue.created_utc.isoformat() + 'Z' if issue.created_utc else '',
+                'updated_iso': issue.updated_utc.isoformat() + 'Z' if issue.updated_utc else ''
+            })
+            archived_dicts.append(issue_dict)
+
+        return render_template(
+            'archive.html',
+            project=project.to_dict(),
+            archived_issues=archived_dicts
+        )
 
     @app.route('/<project_id>/issues/<issue_key>')
     def issue_detail(project_id, issue_key):

@@ -363,6 +363,9 @@ class PMDatabase:
         module = filters.get('module')
         search = filters.get('q') or filters.get('query')
 
+        # Exclude archived issues by default unless explicitly requested
+        if not status:
+            query = query.where(Issue.status != 'archived')
         if status:
             query = query.where(Issue.status == status)
         if priority:
@@ -651,6 +654,9 @@ class PMDatabase:
             query = query.join(Project).where(Project.project_id == project_id)
         if owner:
             query = query.where(Issue.owner == owner)
+        # Exclude archived issues by default unless explicitly filtered by status
+        if not status:
+            query = query.where(Issue.status != 'archived')
         if status:
             query = query.where(Issue.status == status)
         if priority:

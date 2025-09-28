@@ -83,6 +83,12 @@
                     <a href="/{{ project.project_id }}/issues/new" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded bg-primary hover:bg-blue-600 text-white transition-colors">
                         ➕ Create Issue
                     </a>
+                    <a href="/{{ project.project_id }}/archive" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded bg-teal-600 hover:bg-teal-700 text-white transition-colors">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                        </svg>
+                        Archive
+                    </a>
                     <a href="/{{ project.project_id }}" class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-dark-border text-sm font-medium rounded text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors">
                         📊 Dashboard
                     </a>
@@ -263,6 +269,20 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Complete (Archive) Column -->
+            <div class="flex-shrink-0 w-80">
+                <div class="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-3 border border-teal-200 dark:border-teal-800/50">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-semibold text-teal-700 dark:text-teal-200">Archive</h3>
+                        <span class="text-sm text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-900/50 px-2 py-1 rounded" data-count="archived">0</span>
+                    </div>
+                    <!-- Accept drops but do not render archived issues -->
+                    <div class="kanban-column space-y-2 min-h-[500px]" data-status="archived" style="background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2296%22 fill=%22none%22 stroke=%22%2399F6E4%22 stroke-opacity=%220.2%22 viewBox=%220 0 24 24%22%3E%3Cpath stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%221%22 d=%22M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4%22/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: center; background-size: 96px 96px;">
+                        <!-- Empty placeholder to ensure droppable area -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -273,6 +293,8 @@
 <script>
 // Initialize Kanban board
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize archived count from server data
+    window.__archivedCount = {{ archived_count }};
     // Load saved filters from localStorage
     loadFilters();
 
@@ -308,9 +330,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 const oldStatus = evt.from.dataset.status;
 
                 if (newStatus !== oldStatus) {
+                    // If moving to archive, animate fade out then hide
+                    if (newStatus === 'archived') {
+                        // Add fade animation
+                        evt.item.style.transition = 'opacity 0.3s ease-out';
+                        evt.item.style.opacity = '0';
+
+                        // After animation, hide and update
+                        setTimeout(() => {
+                            evt.item.style.display = 'none';
+                            evt.item.dataset.status = 'archived';
+                            // Increment archived count
+                            window.__archivedCount = (window.__archivedCount || 0) + 1;
+                            updateColumnCounts();
+                        }, 300);
+                    }
                     updateIssueStatus(issueKey, newStatus);
                 }
 
+                // Reapply filters
+                applyFilters();
                 updateColumnCounts();
             }
         });
@@ -415,8 +454,10 @@ function applyFilters() {
             }
         }
 
-        // Show completed filter
-        if (!showCompleted && card.dataset.status === 'done') {
+        // Completed filter: hide archived always; hide done when toggled off
+        if (card.dataset.status === 'archived') {
+            visible = false;
+        } else if (!showCompleted && card.dataset.status === 'done') {
             visible = false;
         }
 
@@ -500,15 +541,20 @@ function loadFilters() {
 
 // Update column counts
 function updateColumnCounts() {
-    const statuses = ['proposed', 'in_progress', 'review', 'done', 'blocked'];
+    const statuses = ['proposed', 'in_progress', 'review', 'done', 'blocked', 'archived'];
 
     statuses.forEach(status => {
         const column = document.querySelector(`.kanban-column[data-status="${status}"]`);
         const countElement = document.querySelector(`[data-count="${status}"]`);
 
         if (column && countElement) {
-            const visibleCards = column.querySelectorAll('.kanban-card:not([style*="display: none"])');
-            countElement.textContent = visibleCards.length;
+            if (status === 'archived') {
+                // Use server-derived count for archived since we don't render archived cards
+                countElement.textContent = (typeof window.__archivedCount === 'number') ? window.__archivedCount : 0;
+            } else {
+                const visibleCards = column.querySelectorAll('.kanban-card:not([style*="display: none"])');
+                countElement.textContent = visibleCards.length;
+            }
         }
     });
 }
@@ -532,6 +578,10 @@ async function updateIssueStatus(issueKey, newStatus) {
         }
 
         console.log(`Updated ${issueKey} to ${newStatus}`);
+        // If archived, update counts
+        if (newStatus === 'archived') {
+            updateColumnCounts();
+        }
     } catch (error) {
         console.error('Error updating issue status:', error);
         // Optionally refresh to restore original state

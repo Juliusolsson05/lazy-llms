@@ -86,6 +86,9 @@ class IssueRepository:
                 .where(Project.project_id == project_id))
 
         # Apply filters
+        # Exclude archived issues by default unless a specific status filter is provided
+        if not filters.get('status'):
+            query = query.where(Issue.status != 'archived')
         if filters.get('status'):
             query = query.where(Issue.status == filters['status'])
         if filters.get('priority'):
@@ -98,6 +101,20 @@ class IssueRepository:
             query = query.where(Issue.type == filters['type'])
 
         return list(query.order_by(Issue.updated_utc.desc()))
+
+    @staticmethod
+    def find_archived(project_id: str) -> List[Issue]:
+        """Return archived issues for a project"""
+        return IssueRepository.find_by_project(project_id, status='archived')
+
+    @staticmethod
+    def count_archived(project_id: str) -> int:
+        """Count archived issues for a project"""
+        return (Issue
+                .select()
+                .join(Project)
+                .where((Project.project_id == project_id) & (Issue.status == 'archived'))
+                .count())
 
     @staticmethod
     def search_text(search_query: str, project_id: str = None) -> List[Issue]:

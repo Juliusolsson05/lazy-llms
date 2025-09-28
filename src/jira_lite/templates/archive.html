@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.project_slug }} - Archive{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Archive Header -->
+    <div class="mb-8">
+        <div class="sm:flex sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    <svg class="inline-block w-8 h-8 mr-2 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                    </svg>
+                    Archived Issues
+                </h1>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Historical issues for {{ project.project_slug }}
+                </p>
+                <div class="mt-2 flex items-center space-x-4">
+                    <span class="inline-flex items-center rounded-full bg-teal-100 dark:bg-teal-900/50 px-2.5 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800">
+                        {{ archived_issues|length }} archived issues
+                    </span>
+                </div>
+            </div>
+            <div class="mt-4 sm:mt-0 space-x-3">
+                <a href="/{{ project.project_id }}/kanban" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors">
+                    📋 Kanban Board
+                </a>
+                <a href="/{{ project.project_id }}" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors">
+                    📊 Dashboard
+                </a>
+                <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors">
+                    ← All Projects
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="mb-6 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4">
+        <div class="flex flex-wrap gap-3">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" id="archive-search" placeholder="Search archived issues..."
+                       class="w-full px-3 py-1.5 text-sm bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500">
+            </div>
+            <div class="flex gap-2">
+                <select id="archive-type-filter" class="px-3 py-1.5 text-sm bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-200">
+                    <option value="">All Types</option>
+                    <option value="feature">Feature</option>
+                    <option value="bug">Bug</option>
+                    <option value="refactor">Refactor</option>
+                    <option value="chore">Chore</option>
+                    <option value="spike">Spike</option>
+                </select>
+                <select id="archive-priority-filter" class="px-3 py-1.5 text-sm bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-200">
+                    <option value="">All Priorities</option>
+                    <option value="P1">P1 - Critical</option>
+                    <option value="P2">P2 - High</option>
+                    <option value="P3">P3 - Medium</option>
+                    <option value="P4">P4 - Low</option>
+                    <option value="P5">P5 - Nice-to-have</option>
+                </select>
+                <select id="archive-sort" class="px-3 py-1.5 text-sm bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-200">
+                    <option value="updated_desc">Recently Updated</option>
+                    <option value="updated_asc">Oldest Updated</option>
+                    <option value="created_desc">Recently Created</option>
+                    <option value="created_asc">Oldest Created</option>
+                </select>
+                <button id="clear-archive-filters" class="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-dark-border rounded hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archived Issues Grid -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" id="archive-grid">
+        {% for issue in archived_issues %}
+        <div class="archive-card bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:shadow-lg transition-shadow"
+             data-issue-key="{{ issue.key }}"
+             data-title="{{ issue.title|lower }}"
+             data-type="{{ issue.type }}"
+             data-priority="{{ issue.priority }}"
+             data-module="{{ issue.module or '' }}"
+             data-created="{{ issue.created_iso }}"
+             data-updated="{{ issue.updated_iso }}">
+
+            <!-- Card Header -->
+            <div class="flex justify-between items-start mb-2">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ issue.key }}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800">
+                    Archived
+                </span>
+            </div>
+
+            <!-- Title -->
+            <a href="/{{ project.project_id }}/issues/{{ issue.key }}"
+               class="block text-sm font-semibold text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 mb-2 line-clamp-2 transition-colors">
+                {{ issue.title }}
+            </a>
+
+            <!-- Description Preview -->
+            {% if issue.description %}
+            <p class="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-3">
+                {{ issue.description[:150] }}{% if issue.description|length > 150 %}...{% endif %}
+            </p>
+            {% endif %}
+
+            <!-- Metadata -->
+            <div class="flex flex-wrap gap-1 mb-2">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs
+                    {% if issue.priority == 'P1' %}bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800{% endif %}
+                    {% if issue.priority == 'P2' %}bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-800{% endif %}
+                    {% if issue.priority == 'P3' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-800{% endif %}
+                    {% if issue.priority == 'P4' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800{% endif %}
+                    {% if issue.priority == 'P5' %}bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700{% endif %}">
+                    {{ issue.priority }}
+                </span>
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs">
+                    {{ issue.type }}
+                </span>
+                {% if issue.module %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs">
+                    {{ issue.module }}
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Timestamps -->
+            <div class="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div>Archived: {{ issue.updated_iso[:10] if issue.updated_iso else 'Unknown' }}</div>
+                <div>Created: {{ issue.created_iso[:10] if issue.created_iso else 'Unknown' }}</div>
+            </div>
+
+            <!-- Effort and Complexity if available -->
+            {% if issue.estimated_effort or issue.complexity %}
+            <div class="mt-2 flex gap-2 text-xs">
+                {% if issue.estimated_effort %}
+                <span class="text-gray-600 dark:text-gray-400">⏱ {{ issue.estimated_effort }}</span>
+                {% endif %}
+                {% if issue.complexity %}
+                <span class="text-gray-600 dark:text-gray-400">📊 {{ issue.complexity }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="col-span-full text-center py-12">
+            <svg class="mx-auto w-12 h-12 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+            </svg>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">No archived issues yet</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Issues marked as complete will appear here</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('archive-search');
+    const typeFilter = document.getElementById('archive-type-filter');
+    const priorityFilter = document.getElementById('archive-priority-filter');
+    const sortSelect = document.getElementById('archive-sort');
+    const clearButton = document.getElementById('clear-archive-filters');
+
+    function applyArchiveFilters() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedType = typeFilter.value;
+        const selectedPriority = priorityFilter.value;
+        const cards = Array.from(document.querySelectorAll('.archive-card'));
+
+        // Filter cards
+        cards.forEach(card => {
+            let visible = true;
+
+            if (searchTerm && !card.dataset.title.includes(searchTerm) &&
+                !card.dataset.issueKey.toLowerCase().includes(searchTerm)) {
+                visible = false;
+            }
+
+            if (selectedType && card.dataset.type !== selectedType) {
+                visible = false;
+            }
+
+            if (selectedPriority && card.dataset.priority !== selectedPriority) {
+                visible = false;
+            }
+
+            card.style.display = visible ? 'block' : 'none';
+        });
+
+        // Sort visible cards
+        sortArchiveCards();
+    }
+
+    function sortArchiveCards() {
+        const sortValue = sortSelect.value;
+        const grid = document.getElementById('archive-grid');
+        const cards = Array.from(document.querySelectorAll('.archive-card:not([style*="display: none"])'));
+
+        cards.sort((a, b) => {
+            switch(sortValue) {
+                case 'updated_desc':
+                    return new Date(b.dataset.updated) - new Date(a.dataset.updated);
+                case 'updated_asc':
+                    return new Date(a.dataset.updated) - new Date(b.dataset.updated);
+                case 'created_desc':
+                    return new Date(b.dataset.created) - new Date(a.dataset.created);
+                case 'created_asc':
+                    return new Date(a.dataset.created) - new Date(b.dataset.created);
+                default:
+                    return 0;
+            }
+        });
+
+        // Re-append sorted cards
+        cards.forEach(card => grid.appendChild(card));
+    }
+
+    function clearFilters() {
+        searchInput.value = '';
+        typeFilter.value = '';
+        priorityFilter.value = '';
+        sortSelect.value = 'updated_desc';
+        applyArchiveFilters();
+    }
+
+    // Event listeners
+    searchInput.addEventListener('input', applyArchiveFilters);
+    typeFilter.addEventListener('change', applyArchiveFilters);
+    priorityFilter.addEventListener('change', applyArchiveFilters);
+    sortSelect.addEventListener('change', applyArchiveFilters);
+    clearButton.addEventListener('click', clearFilters);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + F to focus search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+
+        // Escape to clear search when focused
+        if (e.key === 'Escape' && document.activeElement === searchInput) {
+            searchInput.value = '';
+            applyArchiveFilters();
+            searchInput.blur();
+        }
+    });
+});
+
+// Add styles for line-clamp utility
+const style = document.createElement('style');
+style.textContent = `
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .line-clamp-3 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

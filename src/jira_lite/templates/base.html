@@ -46,6 +46,10 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-600 dark:text-gray-400">LLM-Native Project Management</span>
+                    {% if project %}
+                    <a href="/{{ project.project_id }}/kanban" class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors">Kanban</a>
+                    <a href="/{{ project.project_id }}/archive" class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors">Archive</a>
+                    {% endif %}
 
                     <!-- Theme Toggle Button -->
                     <button id="theme-toggle"
