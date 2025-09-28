@@ -138,18 +138,140 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# PyCharm
-.idea/
+# ========================================
+# Editor and IDE files
+# ========================================
 
-# VSCode
+# Visual Studio Code
 .vscode/
 *.code-workspace
-
-# Local History for Visual Studio Code
 .history/
-
-# Built Visual Studio Code Extensions
 *.vsix
+
+# JetBrains IDEs (PyCharm, IntelliJ, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+atlassian-ide-plugin.xml
+
+# Cursor Editor
+.cursor/
+cursor.json
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+*.sublime-settings
+
+# Vim / Neovim
+*.swp
+*.swo
+*.swn
+.vim/
+Session.vim
+.netrwhist
+*~
+tags
+
+# Emacs
+*~
+\#*\#
+.\#*
+.emacs.desktop
+.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.dir-locals.el
+.projectile
+.tern-project
+
+# Atom
+.atom/
+
+# Nova
+.nova/
+
+# Zed
+.zed/
+
+# TextMate
+*.tmproj
+*.tmproject
+tmtags
+
+# Brackets
+.brackets.json
+
+# Kate
+*.kate-swp
+
+# Notepad++
+nppBackup/
+
+# Eclipse
+.project
+.classpath
+.settings/
+.metadata/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+.loadpath
+
+# NetBeans
+nbproject/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj.filters
+*.vcxproj.user
+
+# Xcode
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+
+# CodeBlocks
+*.cbp
+*.depend
+*.layout
+
+# Cloud9
+.c9/
+
+# Anjuta
+.anjuta/
+.anjuta_sym_db.db
+
+# KDevelop
+*.kdev*
+.kdev*/
+
+# Geany
+*.geany
+.geany/
 
 # Node
 node_modules/
