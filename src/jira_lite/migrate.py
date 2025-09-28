@@ -30,10 +30,9 @@ def migrate_projects():
     """Migrate projects from JSON to SQLite"""
     print("📊 Migrating projects...")
 
-    # Try multiple possible locations
+    # Only look for local JSON files
     json_files = [
-        'data/projects.json',
-        '~/.julius_mcp/jira_lite/projects.json'
+        'data/projects.json'
     ]
 
     projects_data = []
@@ -82,10 +81,9 @@ def migrate_issues():
     """Migrate issues from JSON to SQLite"""
     print("🎫 Migrating issues...")
 
-    # Try multiple possible locations
+    # Only look for local JSON files
     json_files = [
-        'data/issues.json',
-        '~/.julius_mcp/jira_lite/issues.json'
+        'data/issues.json'
     ]
 
     issues_data = []
@@ -143,10 +141,9 @@ def migrate_tasks():
     """Migrate tasks from JSON to SQLite"""
     print("📋 Migrating tasks...")
 
-    # Try multiple possible locations
+    # Only look for local JSON files
     json_files = [
-        'data/tasks.json',
-        '~/.julius_mcp/jira_lite/tasks.json'
+        'data/tasks.json'
     ]
 
     tasks_data = []
@@ -191,10 +188,9 @@ def migrate_worklogs():
     """Migrate worklogs from JSON to SQLite"""
     print("📝 Migrating worklogs...")
 
-    # Try multiple possible locations
+    # Only look for local JSON files
     json_files = [
-        'data/worklogs.json',
-        '~/.julius_mcp/jira_lite/worklogs.json'
+        'data/worklogs.json'
     ]
 
     worklogs_data = []

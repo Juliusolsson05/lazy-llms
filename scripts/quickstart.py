@@ -82,7 +82,7 @@ pm_log_work             # Track progress
 pm_commit               # Save changes
 
 Database: {database_path}
-Projects: 4 found with 13 issues, 7 tasks, 16 worklogs
+Project: lazy-llms-test with real PM tracking
 """
 
     print("📋 Claude Code MCP Configuration:")
@@ -102,7 +102,7 @@ Projects: 4 found with 13 issues, 7 tasks, 16 worklogs
     print("=" * 60)
     print("• Web UI: http://127.0.0.1:1928")
     print("• MCP Server: Connected to SQLite database")
-    print("• Database: 4 projects, 13 issues ready")
+    print("• Database: Real PM tracking for lazy-llms project")
     print("• Claude Code: Run the copied command above")
     print("=" * 60)
 
