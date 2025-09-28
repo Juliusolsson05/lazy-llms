@@ -90,12 +90,13 @@ def standard_response(success: bool, message: str, data: Optional[Dict[str, Any]
 def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
     """
     Get comprehensive PM system documentation and workflow guidance.
-    This tool provides the LLM with understanding of available commands,
-    workflows, and best practices for project management.
+    Returns complete documentation including all commands, workflows,
+    troubleshooting, and best practices.
     """
     try:
-        docs = {
-        "overview": """# LLM-Native Project Management System
+        full_docs = """# LLM-Native Project Management System - Complete Documentation
+
+## Overview
 
 This PM system is designed for LLM agents as first-class citizens, providing:
 - Rich context and documentation in every issue
@@ -110,59 +111,62 @@ This PM system is designed for LLM agents as first-class citizens, providing:
 - **Git Integration**: Automatic branch creation and commit formatting
 
 ## Available Tool Categories
-1. **Discovery**: pm_docs, pm_status, pm_list_issues, pm_get_issue, pm_search_issues
+1. **Discovery**: pm_docs, pm_workflow, pm_status, pm_list_issues, pm_get_issue, pm_search_issues
 2. **Planning**: pm_create_issue, pm_update_issue, pm_estimate, pm_refine_issue
 3. **Execution**: pm_start_work, pm_log_work, pm_update_status, pm_create_task
 4. **Git**: pm_git_status, pm_create_branch, pm_commit, pm_push_branch
 5. **Analytics**: pm_project_dashboard, pm_my_queue, pm_blocked_issues
-6. **Workflow**: pm_daily_standup, pm_weekly_report, pm_capacity_planning""",
+6. **Workflow**: pm_daily_standup, pm_weekly_report, pm_capacity_planning
 
-        "commands": """# PM Command Reference
+## Command Reference
 
-## Discovery Commands
-- `pm_docs`: Get documentation (this command)
+### Discovery Commands
+- `pm_docs`: Get complete documentation (this command)
+- `pm_workflow`: Get methodology and best practices for PM-driven development
 - `pm_status`: Project status overview with metrics
 - `pm_list_issues`: List and filter issues with sorting
 - `pm_get_issue`: Get detailed issue with context
 - `pm_list_projects`: List all available projects
 - `pm_search_issues`: Full-text search across all content
 
-## Planning Commands
+### Planning Commands
 - `pm_create_issue`: Create comprehensive issue with rich specs
 - `pm_update_issue`: Update issue details and content
 - `pm_estimate`: Add effort and complexity estimates with reasoning
 - `pm_refine_issue`: Iteratively refine requirements and approach
 
-## Execution Commands
+### Execution Commands
 - `pm_start_work`: Begin work on issue (status + optional branch)
 - `pm_log_work`: Log development activity with artifacts
 - `pm_update_status`: Change issue status with workflow validation
 - `pm_create_task`: Break issue into manageable tasks
+- `pm_update_task`: Update task status and details
+- `pm_delete_issue`: Delete an issue with all associated data
 
-## Git Integration
+### Git Integration
 - `pm_git_status`: Enhanced git status with issue context
 - `pm_create_branch`: Create feature branch with conventions
 - `pm_commit`: Commit with PM trailers and formatting
 - `pm_push_branch`: Push and optionally create PR
 
-## Analytics & Reporting
+### Analytics & Reporting
 - `pm_project_dashboard`: Comprehensive project health metrics
 - `pm_my_queue`: Personal work queue with intelligent prioritization
 - `pm_blocked_issues`: Find and analyze blocked work
 - `pm_daily_standup`: Generate daily standup report
-- `pm_weekly_report`: Weekly progress and velocity report""",
+- `pm_reminder`: Get helpful reminders about PM best practices
 
-        "workflow": """# Typical LLM Agent Workflow
+## Typical LLM Agent Workflow
 
-## 1. Fresh Session Startup
+### 1. Fresh Session Startup
 ```
-pm_docs                    # Understand the system capabilities
-pm_status                  # Get project health overview
-pm_my_queue               # Get prioritized work queue
-pm_blocked_issues         # Check for unblocking opportunities
+pm_workflow               # Understand methodology and best practices
+pm_status                 # Get project health overview
+pm_my_queue              # Get prioritized work queue
+pm_blocked_issues        # Check for unblocking opportunities
 ```
 
-## 2. Creating New Feature
+### 2. Creating New Feature
 ```
 pm_create_issue --type feature --title "Add user authentication"
   --description "Comprehensive technical specification..."
@@ -175,14 +179,14 @@ pm_refine_issue --aspect technical
   --suggestions "Consider OAuth integration for future"
 ```
 
-## 3. Starting Implementation
+### 3. Starting Implementation
 ```
 pm_start_work --issue-key PROJ-001    # Status → in_progress + branch
 pm_git_status                         # Verify git state
 pm_create_branch                      # Create if not auto-created
 ```
 
-## 4. Development Loop
+### 4. Development Loop
 ```
 pm_log_work --activity code --summary "Implemented JWT middleware"
   --artifacts '[{"type":"file","path":"src/auth.py"}]'
@@ -195,7 +199,7 @@ pm_create_task --title "Add integration tests"
   --checklist '["Write auth tests","Test token validation"]'
 ```
 
-## 5. Completion
+### 5. Completion
 ```
 pm_update_status --status review
   --notes "Implementation complete, ready for security review"
@@ -205,56 +209,305 @@ pm_push_branch --create-pr
 
 pm_log_work --activity review
   --summary "Created PR and requested reviews"
-```""",
+```
 
-        "troubleshooting": """# Troubleshooting Guide
+## Troubleshooting Guide
 
-## Common Issues
+### Common Issues
 
-### Database Connection
+#### Database Connection
 - Ensure `PM_DATABASE_PATH` points to valid SQLite file
 - Run Jira-lite migration if database doesn't exist
 - Check file permissions on database file
 
-### Git Operations
+#### Git Operations
 - Ensure you're in a valid git repository
 - Check git identity is configured
 - Verify remote branches exist before pulling
 
-### Issue Creation
+#### Issue Creation
 - Ensure project exists and is registered
 - Use descriptive titles and detailed descriptions
 - Include acceptance criteria for better tracking
 
-## Environment Variables
+### Environment Variables
 - `PM_DATABASE_PATH`: Path to SQLite database (required)
 - `PM_DEFAULT_PROJECT_ID`: Default project to use
 - `PM_DEFAULT_OWNER`: Default issue owner
 - `GIT_USER_NAME`: Git commit author name
 - `GIT_USER_EMAIL`: Git commit author email
 
-## Commands for Debug
+### Commands for Debug
 - `pm_status --verbose`: Detailed project health
 - `pm_list_projects`: See all available projects
 - `pm_git_status`: Check git repository state
-- `pm_blocked_issues`: Find systematic blockers"""
-    }
+- `pm_blocked_issues`: Find systematic blockers
 
-        section = input.section or "overview"
-        content = docs.get(section, docs["overview"])
+## Best Practices
 
-        return ok(f"Documentation: {section}", {
-            "content": content,
-            "section": section,
-            "available_sections": list(docs.keys())
-        }, hints=["Use --section parameter to get specific documentation sections"])
+1. **Always document your work** - Use pm_log_work regularly
+2. **Break down complex tasks** - Use pm_create_task for subtasks
+3. **Keep issues updated** - Use pm_update_status when changing work phase
+4. **Use descriptive commits** - pm_commit adds proper formatting
+5. **Track blockers** - Use pm_update_status with blocked reason
+6. **Review before closing** - Always move to review status before done
+
+For methodology and workflow philosophy, use `pm_workflow` to get detailed guidance on PM-driven development."""
+
+        return ok("Complete PM Documentation", {
+            "content": full_docs
+        }, hints=["Use pm_workflow for methodology and best practices"])
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(
             success=False,
             message=f"Failed to get documentation: {type(e).__name__}",
             data={"error_details": {"error": str(e), "traceback": tb}},
-            hints=["Try calling without parameters for overview", "Valid sections: overview, commands, workflow, troubleshooting"]
+            hints=["Check database connectivity"]
+        )
+
+@mcp.tool()
+def pm_workflow(input: PMWorkflowInput) -> Dict[str, Any]:
+    """
+    Get methodology and best practices for PM-driven development.
+    This is the primary tool for new chat sessions, providing comprehensive
+    guidance on how to work effectively with the PM system.
+    """
+    try:
+        workflow_content = """# PM-Driven Development Methodology for LLMs
+
+## Core Philosophy: Document Everything
+
+**CRITICAL**: When developing, ALWAYS think about reporting and documenting your progress from the PM perspective.
+Every significant action should be tracked. This is not optional - it's the foundation of effective development.
+
+## As an LLM Agent, You Should...
+
+### 1. Start Every Session Right
+When beginning a new chat session or picking up work:
+```
+1. pm_workflow          # Understand methodology (you are here!)
+2. pm_status           # Get current project state
+3. pm_my_queue         # See your prioritized work
+4. pm_blocked_issues   # Check what can be unblocked
+```
+
+This gives you full context before diving into code.
+
+### 2. Think PM-First, Code-Second
+Before writing ANY code:
+- Is there an issue for this work? (If not, create one!)
+- Have I started work on the issue? (Use pm_start_work)
+- Am I tracking my progress? (Use pm_log_work regularly)
+
+### 3. Document As You Go (Not After)
+❌ WRONG: Complete all work, then log it at the end
+✅ RIGHT: Log progress after each meaningful step
+
+Example of proper documentation rhythm:
+```
+pm_log_work --activity planning --summary "Analyzed requirements"
+[do analysis]
+
+pm_log_work --activity code --summary "Implemented authentication logic"
+[write auth code]
+
+pm_log_work --activity test --summary "Added unit tests for auth"
+[write tests]
+
+pm_log_work --activity debug --summary "Fixed token expiration bug"
+[fix bug]
+```
+
+## Decision Trees
+
+### "Should I Create an Issue?"
+```
+Is this work trackable? (more than 5 minutes)
+├─ YES → Create an issue
+│   ├─ New feature? → type: feature
+│   ├─ Fixing a bug? → type: bug
+│   ├─ Code cleanup? → type: refactor
+│   ├─ Maintenance? → type: chore
+│   └─ Research/investigation? → type: spike
+└─ NO → Just do it (but still consider logging if significant)
+```
+
+### "Issue vs Task vs Worklog?"
+```
+What am I tracking?
+├─ Complete unit of deliverable work → Issue
+│   └─ Need to break it down? → Create tasks within the issue
+├─ Subdivision of an issue → Task
+└─ Activity/progress on issue/task → Worklog
+```
+
+### "When to Update Status?"
+```
+What happened?
+├─ Starting work → status: in_progress
+├─ Hit a blocker → status: blocked (with reason!)
+├─ Ready for review → status: review
+├─ Review complete → status: done
+└─ Won't complete → status: canceled (with reason!)
+```
+
+## Common Workflows
+
+### Starting Fresh Work
+```python
+# 1. Check what needs doing
+pm_my_queue()  # or pm_list_issues --status proposed
+
+# 2. Pick an issue or create one
+pm_create_issue(
+    type="feature",
+    title="Clear, specific title",
+    description="Full context and approach",
+    acceptance_criteria=["Specific", "Measurable", "Outcomes"]
+)
+
+# 3. Begin work
+pm_start_work(issue_key="PROJ-001")  # Creates branch, sets status
+
+# 4. Track everything
+pm_log_work(
+    activity="code",
+    summary="What I did and why",
+    time_spent="2h"
+)
+```
+
+### Investigating Issues
+```python
+# 1. Search for context
+pm_search_issues(query="authentication")
+
+# 2. Get full details
+pm_get_issue(issue_key="PROJ-001", include_worklogs=True)
+
+# 3. Check dependencies
+pm_get_issue(issue_key="PROJ-001", include_dependencies=True)
+```
+
+### Completing Work
+```python
+# 1. Final testing
+pm_log_work(activity="test", summary="All tests passing")
+
+# 2. Update status
+pm_update_status(status="review", notes="Ready for code review")
+
+# 3. Commit with PM context
+pm_commit(message="feat: implement user authentication")
+
+# 4. Push for review
+pm_push_branch()
+```
+
+## Activity Types and When to Use Them
+
+- **planning**: Design decisions, architecture, approach
+- **code**: Writing implementation code
+- **test**: Writing or running tests
+- **debug**: Investigating and fixing issues
+- **research**: Learning, investigating, exploring
+- **review**: Code review, documentation review
+- **refactor**: Improving code without changing behavior
+- **document**: Writing docs, comments, or specifications
+- **deploy**: Deployment and release activities
+- **blocked**: Encountered a blocker (always explain!)
+
+## Best Practices for Maximum Impact
+
+### 1. Rich Issue Descriptions
+Don't just state WHAT, explain WHY and HOW:
+```
+❌ "Fix login bug"
+✅ "Fix authentication timeout causing user logout loops
+
+   Users are being logged out every 5 minutes due to incorrect
+   JWT expiration handling. The auth middleware is using server
+   time instead of UTC, causing timezone mismatches.
+
+   Solution: Standardize on UTC timestamps throughout auth flow."
+```
+
+### 2. Meaningful Work Summaries
+Your future self (and other LLMs) will thank you:
+```
+❌ pm_log_work --summary "Fixed stuff"
+✅ pm_log_work --summary "Fixed JWT expiration by converting to UTC timestamps, added validation for token refresh logic"
+```
+
+### 3. Track Decisions
+When you make architectural or design decisions:
+```
+pm_log_work --activity planning --summary "Decided to use Redis for session storage instead of in-memory due to horizontal scaling requirements"
+```
+
+### 4. Use Artifacts
+Link your work to concrete outputs:
+```
+pm_log_work --artifacts '[
+  {"type": "file", "path": "src/auth/jwt.py"},
+  {"type": "test", "path": "tests/test_auth.py"},
+  {"type": "pr", "url": "https://github.com/org/repo/pull/123"}
+]'
+```
+
+### 5. Time Tracking
+Be honest and specific:
+- "30m" - Quick fix
+- "2h" - Solid work session
+- "1d" - Full day of work
+- "2-3h" - When uncertain, use ranges
+
+## The PM Mindset
+
+Think of PM as your development journal that provides:
+1. **Context** - Why decisions were made
+2. **History** - What was tried and didn't work
+3. **Progress** - How the solution evolved
+4. **Knowledge** - Learnings for future work
+
+Every pm_log_work entry should answer: "If another LLM picks this up in 6 months, what would they need to know?"
+
+## Quick Reference Checklist
+
+Before starting any coding task:
+- [ ] Is there an issue tracking this work?
+- [ ] Have I called pm_start_work?
+- [ ] Do I understand the acceptance criteria?
+
+While coding:
+- [ ] Am I logging progress regularly (every 30-60 min)?
+- [ ] Am I capturing key decisions and blockers?
+- [ ] Are my commits linked to the issue?
+
+Before marking complete:
+- [ ] Have all acceptance criteria been met?
+- [ ] Are all tests passing?
+- [ ] Have I documented what was delivered?
+- [ ] Is the status updated correctly?
+
+## Remember
+
+The PM system is not bureaucracy - it's your memory, your assistant, and your collaboration tool.
+Use it continuously, not as an afterthought. When in doubt, document it!
+
+**Your mantra: "Document as I go, not when I'm done."**"""
+
+        return ok("PM Workflow Methodology", {
+            "content": workflow_content
+        }, hints=["Follow this methodology throughout your development session"])
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to get workflow methodology: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check system configuration"]
         )
 
 @mcp.tool()

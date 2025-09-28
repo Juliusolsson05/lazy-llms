@@ -28,11 +28,12 @@ class PMOperationResult(BaseModel):
 # =============== Discovery Models ===============
 
 class PMDocsInput(BaseModel):
-    """Input for pm_docs tool"""
-    section: Optional[Literal["overview", "commands", "workflow", "git", "troubleshooting"]] = Field(
-        default=None,
-        description="Specific section to retrieve. If omitted, returns comprehensive overview."
-    )
+    """Input for pm_docs tool - no parameters needed, always returns full documentation"""
+    pass
+
+class PMWorkflowInput(BaseModel):
+    """Input for pm_workflow tool - provides methodology and best practices for PM-driven development"""
+    pass
 
 class PMStatusInput(BaseModel):
     """Input for pm_status tool"""
