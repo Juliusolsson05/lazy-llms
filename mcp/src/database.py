@@ -381,6 +381,58 @@ class PMDatabase:
         return list(query.order_by(Issue.updated_utc.desc()))
 
     @classmethod
+    def find_archived_issues(cls, project_id: str, **filters) -> List[Issue]:
+        """Find archived issues with filters - returns Peewee models"""
+        if not project_id:
+            return []
+        query = (Issue.select()
+                .join(Project)
+                .where((Project.project_id == project_id) & (Issue.status == 'archived')))
+
+        priority = filters.get('priority')
+        module = filters.get('module')
+        issue_type = filters.get('type')
+        search_keyword = filters.get('search_keyword')
+        date_from = filters.get('date_from')
+        date_to = filters.get('date_to')
+
+        if priority:
+            query = query.where(Issue.priority == priority)
+        if module:
+            query = query.where(Issue.module == module)
+        if issue_type:
+            query = query.where(Issue.type == issue_type)
+        if search_keyword:
+            query = query.where(
+                (Issue.title.contains(search_keyword)) |
+                (Issue.specification.contains(search_keyword))
+            )
+        if date_from:
+            query = query.where(Issue.updated_utc >= date_from)
+        if date_to:
+            query = query.where(Issue.updated_utc <= date_to)
+
+        return list(query.order_by(Issue.updated_utc.desc()))
+
+    @classmethod
+    def get_archived_issue(cls, project_id: str, issue_key: str) -> Optional[Issue]:
+        """Get a specific archived issue by key"""
+        try:
+            if project_id:
+                return Issue.select().join(Project).where(
+                    (Project.project_id == project_id) &
+                    (Issue.key == issue_key) &
+                    (Issue.status == 'archived')
+                ).first()
+            else:
+                return Issue.select().where(
+                    (Issue.key == issue_key) &
+                    (Issue.status == 'archived')
+                ).first()
+        except Exception:
+            return None
+
+    @classmethod
     def get_issue_with_relations(cls, issue_key: str) -> Optional[Dict[str, Any]]:
         """Get issue with tasks and worklogs using Peewee relationships"""
         try:
@@ -419,7 +471,7 @@ class PMDatabase:
             return None
 
     @classmethod
-    def search_issues(cls, query_text: str, project_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+    def search_issues(cls, query_text: str, project_id: Optional[str] = None, limit: int = 20, include_archived: bool = False) -> List[Dict[str, Any]]:
         """Full-text search using Peewee queries"""
         # Build search conditions
         search_conditions = (
@@ -430,6 +482,10 @@ class PMDatabase:
         )
 
         query = Issue.select().where(search_conditions)
+
+        # Exclude archived unless explicitly included
+        if not include_archived:
+            query = query.where(Issue.status != 'archived')
 
         if project_id:
             query = query.join(Project).where(Project.project_id == project_id)

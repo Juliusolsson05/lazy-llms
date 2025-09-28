@@ -300,7 +300,8 @@ def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
             issues = PMDatabase.search_issues(
                 query_text=input.query,
                 project_id=input.project_id,
-                limit=input.limit
+                limit=input.limit,
+                include_archived=input.include_archived
             )
 
             # If not including content, strip heavy fields for performance
@@ -311,7 +312,7 @@ def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
 
             return standard_response(
                 success=True,
-                message=f"Found {len(issues)} issues matching '{input.query}'",
+                message=f"Found {len(issues)} issues matching '{input.query}'{' (including archived)' if input.include_archived else ''}",
                 data={
                     "query": input.query,
                     "project_id": input.project_id,
@@ -352,6 +353,137 @@ def pm_list_projects() -> Dict[str, Any]:
             message=f"Failed to list projects: {type(e).__name__}",
             data={"error_details": {"error": str(e), "traceback": tb}},
             hints=["Check database connectivity", "Ensure database is initialized"]
+        )
+
+@mcp.tool()
+@strict_project_scope
+def pm_list_archived_issues(input: ListArchivedIssuesInput) -> Dict[str, Any]:
+    """
+    List archived/completed issues with comprehensive filtering.
+    Provides access to historical work, decisions, and implementation details.
+    All returned issues are clearly marked as archived.
+    """
+    try:
+        with DatabaseSession():
+            pid = _require_project_id(input.project_id)
+            if not pid:
+                return err("No project found. Initialize one with pm_init_project()", {})
+
+            # Prepare filters for archived issues
+            filters = {
+                'priority': input.priority,
+                'module': input.module,
+                'type': input.type,
+                'search_keyword': input.search_keyword,
+                'date_from': input.date_from,
+                'date_to': input.date_to
+            }
+
+            issues = PMDatabase.find_archived_issues(pid, **filters)
+
+            # Limit results
+            if input.limit:
+                issues = issues[:input.limit]
+
+            # Add archived indicator to each issue
+            archived_issues = []
+            for issue in issues:
+                issue_dict = issue.to_rich_dict()
+                issue_dict['is_archived'] = True
+                issue_dict['archived_status'] = 'ARCHIVED'
+                archived_issues.append(issue_dict)
+
+            return ok(
+                f"Found {len(archived_issues)} archived issues",
+                {
+                    "archived_issues": archived_issues,
+                    "count": len(archived_issues),
+                    "filters_applied": {k: v for k, v in filters.items() if v is not None}
+                },
+                hints=[
+                    f"Use pm_get_archived_issue --issue-key {archived_issues[0]['key']} for full historical details" if archived_issues else "No archived issues match your filters",
+                    "Archived issues represent completed/historical work"
+                ]
+            )
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to list archived issues: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check database connectivity", "Verify filters are valid"]
+        )
+
+@mcp.tool()
+@strict_project_scope
+def pm_get_archived_issue(input: GetArchivedIssueInput) -> Dict[str, Any]:
+    """
+    Retrieve comprehensive details of an archived issue.
+    Returns full historical context including work logs, decisions, and artifacts.
+    Clearly indicates this is archived/historical data.
+    """
+    try:
+        with DatabaseSession():
+            pid = _require_project_id(input.project_id)
+
+            # Get the archived issue
+            issue = PMDatabase.get_archived_issue(pid, input.issue_key)
+            if not issue:
+                return err(
+                    f"Archived issue {input.issue_key} not found",
+                    {},
+                    hints=["Use pm_list_archived_issues to find archived issues", "Check issue key format"]
+                )
+
+            # Build result with archived indicators
+            result_data = {
+                "issue": issue.to_rich_dict(),
+                "is_archived": True,
+                "archived_status": "ARCHIVED - This is historical/completed work"
+            }
+
+            # Add work logs if requested
+            if input.include_worklogs:
+                worklogs = []
+                for log in issue.worklogs:
+                    log_data = log.to_dict()
+                    # Include artifacts and context
+                    log_data['artifacts'] = log.artifacts
+                    log_data['context'] = log.context
+                    worklogs.append(log_data)
+                result_data["worklogs"] = worklogs
+                result_data["total_worklogs"] = len(worklogs)
+
+            # Add tasks if requested
+            if input.include_tasks:
+                tasks = []
+                for task in issue.tasks:
+                    task_data = task.to_dict()
+                    task_data['checklist'] = task.checklist
+                    task_data['notes'] = task.notes
+                    tasks.append(task_data)
+                result_data["tasks"] = tasks
+
+            # Add project info
+            result_data["project"] = PMDatabase._project_to_dict(issue.project)
+
+            return ok(
+                f"Archived issue {input.issue_key} retrieved",
+                result_data,
+                hints=[
+                    "This is archived/historical data from completed work",
+                    "Use work logs and artifacts to understand implementation details",
+                    "Reference this for similar future work"
+                ]
+            )
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        return standard_response(
+            success=False,
+            message=f"Failed to get archived issue: {type(e).__name__}",
+            data={"error_details": {"error": str(e), "traceback": tb}},
+            hints=["Check database connectivity", "Verify issue key format"]
         )
 
 # =============== Planning Tools ===============

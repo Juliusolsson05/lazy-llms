@@ -130,6 +130,70 @@ class SearchIssuesInput(BaseModel):
         default=False,
         description="Include full content in results (slower but more context)"
     )
+    include_archived: bool = Field(
+        default=False,
+        description="Include archived issues in search results (default excludes archived)"
+    )
+
+class ListArchivedIssuesInput(BaseModel):
+    """Input for pm_list_archived_issues tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Filter by project ID. Uses default if not specified."
+    )
+    priority: Optional[Literal["P1", "P2", "P3", "P4", "P5"]] = Field(
+        default=None,
+        description="Filter by priority (P1=highest, P5=lowest)"
+    )
+    module: Optional[str] = Field(
+        default=None,
+        description="Filter by module/component name"
+    )
+    type: Optional[Literal["feature", "bug", "refactor", "chore", "spike"]] = Field(
+        default=None,
+        description="Filter by issue type"
+    )
+    date_from: Optional[str] = Field(
+        default=None,
+        description="Filter issues archived after this date (YYYY-MM-DD format)"
+    )
+    date_to: Optional[str] = Field(
+        default=None,
+        description="Filter issues archived before this date (YYYY-MM-DD format)"
+    )
+    search_keyword: Optional[str] = Field(
+        default=None,
+        description="Search keyword in archived issue titles and descriptions"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum number of archived issues to return"
+    )
+    sort_by: Literal["updated", "created", "priority"] = Field(
+        default="updated",
+        description="Sort order for results"
+    )
+
+class GetArchivedIssueInput(BaseModel):
+    """Input for pm_get_archived_issue tool"""
+    issue_key: str = Field(
+        description="Archived issue key to retrieve (e.g., 'PROJ-001')",
+        pattern=r"^[A-Z]+-\d+-\d{3}$"
+    )
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project scope (auto-resolved if omitted)"
+    )
+    include_worklogs: bool = Field(
+        default=True,
+        description="Include full work history and artifacts"
+    )
+    include_tasks: bool = Field(
+        default=True,
+        description="Include associated tasks"
+    )
 
 # =============== Planning Models ===============
 

@@ -21,6 +21,8 @@ This PM system is designed for LLMs as first-class citizens. Unlike human-orient
 - **pm_get_issue** - Retrieves complete issue details including tasks, worklogs, and dependencies
 - **pm_search_issues** - Performs full-text search across all issue content
 - **pm_list_projects** - Shows all registered projects in the system
+- **pm_list_archived_issues** - Lists archived/completed issues with comprehensive filtering
+- **pm_get_archived_issue** - Retrieves specific archived issue with full historical context
 - **pm_my_queue** - Returns personalized work queue sorted by urgency
 - **pm_blocked_issues** - Lists all issues currently blocked with reasons
 
