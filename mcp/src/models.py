@@ -28,11 +28,12 @@ class PMOperationResult(BaseModel):
 # =============== Discovery Models ===============
 
 class PMDocsInput(BaseModel):
-    """Input for pm_docs tool"""
-    section: Optional[Literal["overview", "commands", "workflow", "git", "troubleshooting"]] = Field(
-        default=None,
-        description="Specific section to retrieve. If omitted, returns comprehensive overview."
-    )
+    """Input for pm_docs tool - no parameters needed, always returns full documentation"""
+    pass
+
+class PMWorkflowInput(BaseModel):
+    """Input for pm_workflow tool - provides methodology and best practices for PM-driven development"""
+    pass
 
 class PMStatusInput(BaseModel):
     """Input for pm_status tool"""
@@ -65,7 +66,11 @@ class ListIssuesInput(BaseModel):
     )
     module: Optional[str] = Field(
         default=None,
-        description="Filter by module/component name"
+        description="Filter by module/component name (can be submodule name)"
+    )
+    submodule: Optional[str] = Field(
+        default=None,
+        description="Filter by specific submodule (e.g., 'learnio-backend'). Overrides module filter if provided."
     )
     owner: Optional[str] = Field(
         default=None,
@@ -129,6 +134,70 @@ class SearchIssuesInput(BaseModel):
         default=False,
         description="Include full content in results (slower but more context)"
     )
+    include_archived: bool = Field(
+        default=False,
+        description="Include archived issues in search results (default excludes archived)"
+    )
+
+class ListArchivedIssuesInput(BaseModel):
+    """Input for pm_list_archived_issues tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Filter by project ID. Uses default if not specified."
+    )
+    priority: Optional[Literal["P1", "P2", "P3", "P4", "P5"]] = Field(
+        default=None,
+        description="Filter by priority (P1=highest, P5=lowest)"
+    )
+    module: Optional[str] = Field(
+        default=None,
+        description="Filter by module/component name"
+    )
+    type: Optional[Literal["feature", "bug", "refactor", "chore", "spike"]] = Field(
+        default=None,
+        description="Filter by issue type"
+    )
+    date_from: Optional[str] = Field(
+        default=None,
+        description="Filter issues archived after this date (YYYY-MM-DD format)"
+    )
+    date_to: Optional[str] = Field(
+        default=None,
+        description="Filter issues archived before this date (YYYY-MM-DD format)"
+    )
+    search_keyword: Optional[str] = Field(
+        default=None,
+        description="Search keyword in archived issue titles and descriptions"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum number of archived issues to return"
+    )
+    sort_by: Literal["updated", "created", "priority"] = Field(
+        default="updated",
+        description="Sort order for results"
+    )
+
+class GetArchivedIssueInput(BaseModel):
+    """Input for pm_get_archived_issue tool"""
+    issue_key: str = Field(
+        description="Archived issue key to retrieve (e.g., 'PROJ-001')",
+        pattern=r"^[A-Z]+-\d+-\d{3}$"
+    )
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project scope (auto-resolved if omitted)"
+    )
+    include_worklogs: bool = Field(
+        default=True,
+        description="Include full work history and artifacts"
+    )
+    include_tasks: bool = Field(
+        default=True,
+        description="Include associated tasks"
+    )
 
 # =============== Planning Models ===============
 
@@ -157,6 +226,10 @@ class CreateIssueInput(BaseModel):
     module: Optional[str] = Field(
         default=None,
         description="Module/component this issue belongs to"
+    )
+    submodule: Optional[str] = Field(
+        default=None,
+        description="Specific submodule (e.g., 'learnio-backend') that overrides module field if provided"
     )
     acceptance_criteria: List[str] = Field(
         default_factory=list,
@@ -773,6 +846,51 @@ class SuggestNextWorkInput(BaseModel):
         description="Avoid high-complexity issues"
     )
 
+class AddSubmoduleInput(BaseModel):
+    """Input for pm_add_submodule tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project to add submodule to. Uses default if not specified."
+    )
+    name: str = Field(
+        description="Submodule name (e.g., 'learnio-backend')"
+    )
+    path: str = Field(
+        description="Relative path to submodule from project root (e.g., 'backend', 'src/frontend')"
+    )
+    is_separate_repo: bool = Field(
+        default=False,
+        description="Whether this submodule has its own git repository"
+    )
+    manage_separately: bool = Field(
+        default=False,
+        description="Whether to manage this submodule as a separate project"
+    )
+
+class RemoveSubmoduleInput(BaseModel):
+    """Input for pm_remove_submodule tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project to remove submodule from. Uses default if not specified."
+    )
+    name: str = Field(
+        description="Submodule name to remove"
+    )
+    reassign_issues_to: Optional[str] = Field(
+        default=None,
+        description="Module to reassign existing issues to (or null to clear module)"
+    )
+
+class ListSubmodulesInput(BaseModel):
+    """Input for pm_list_submodules tool"""
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project to list submodules for. Uses default if not specified."
+    )
+    include_stats: bool = Field(
+        default=True,
+        description="Include issue statistics for each submodule"
+    )
 
 # =============== Error/Result Models ===============
 

@@ -161,19 +161,38 @@ class IssueRepository:
         return list(query.order_by(Issue.updated_utc.desc()))
 
     @staticmethod
-    def get_dependencies(issue_key: str) -> Dict[str, List[str]]:
+    def get_dependencies(issue_key: str) -> Dict[str, List[Dict[str, str]]]:
         """Get issue dependencies and things it blocks"""
         issue = IssueRepository.find_by_key(issue_key)
         if not issue:
             return {"depends_on": [], "blocks": []}
 
-        depends_on = issue.dependencies
+        # Convert dependency keys to full issue info
+        depends_on = []
+        for dep_key in issue.dependencies:
+            dep_issue = IssueRepository.find_by_key(dep_key)
+            if dep_issue:
+                depends_on.append({
+                    'key': dep_key,
+                    'title': dep_issue.title,
+                    'status': dep_issue.status
+                })
+            else:
+                depends_on.append({
+                    'key': dep_key,
+                    'title': 'Issue not found',
+                    'status': 'unknown'
+                })
 
         # Find issues that depend on this one
         blocks = []
         for other_issue in Issue.select():
             if issue_key in other_issue.dependencies:
-                blocks.append(other_issue.key)
+                blocks.append({
+                    'key': other_issue.key,
+                    'title': other_issue.title,
+                    'status': other_issue.status
+                })
 
         return {
             "depends_on": depends_on,

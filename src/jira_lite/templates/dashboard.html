@@ -212,6 +212,38 @@
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">{{ submodule.name }}</h3>
                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ submodule.path }}</div>
 
+                    <!-- Submodule Metrics -->
+                    {% set done_count = module_issues|selectattr("status", "equalto", "done")|list|length %}
+                    {% set in_progress_count = module_issues|selectattr("status", "equalto", "in_progress")|list|length %}
+                    {% set blocked_count = module_issues|selectattr("status", "equalto", "blocked")|list|length %}
+                    {% set total_count = module_issues|length %}
+                    {% set completion_rate = ((done_count / total_count * 100) if total_count > 0 else 0) | round(1) %}
+
+                    <div class="grid grid-cols-4 gap-2 mb-4 text-xs">
+                        <div class="text-center">
+                            <div class="font-semibold text-gray-900 dark:text-gray-100">{{ total_count }}</div>
+                            <div class="text-gray-500 dark:text-gray-400">Total</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-semibold text-yellow-600">{{ in_progress_count }}</div>
+                            <div class="text-gray-500 dark:text-gray-400">Active</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-semibold text-green-600">{{ done_count }}</div>
+                            <div class="text-gray-500 dark:text-gray-400">Done</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-semibold {% if completion_rate >= 75 %}text-green-600{% elif completion_rate >= 50 %}text-yellow-600{% else %}text-red-600{% endif %}">{{ completion_rate }}%</div>
+                            <div class="text-gray-500 dark:text-gray-400">Complete</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+                        <div class="h-2 rounded-full {% if completion_rate >= 75 %}bg-green-600{% elif completion_rate >= 50 %}bg-yellow-600{% else %}bg-red-600{% endif %}"
+                             style="width: {{ completion_rate }}%"></div>
+                    </div>
+
                     {% if module_issues %}
                     <div class="space-y-3">
                         {% for issue in module_issues[:3] %}
