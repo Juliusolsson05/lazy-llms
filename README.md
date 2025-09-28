@@ -220,5 +220,3 @@ The vision of **LLM agents as first-class project managers** is now a reality!
 MIT
 
 ---
-
-**Built with ❤️ for the future of AI-native development workflows**
