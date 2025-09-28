@@ -147,14 +147,40 @@ def pm_status(input: PMStatusInput) -> Dict[str, Any]:
             # Convert project model to dict
             proj_dict = PMDatabase._project_to_dict(project)
 
-            # Get project metrics
-            metrics = PMDatabase.project_metrics(project)
+            # Get project metrics with submodule breakdown if project has submodules
+            has_submodules = bool(project.submodules)
+            metrics = PMDatabase.project_metrics(project, include_submodule_breakdown=has_submodules)
 
             data = {
                 "project": proj_dict,
                 "metrics": metrics,
             }
-            return ok("Project status", data)
+
+            # Add submodule summary if applicable
+            if has_submodules and "submodule_metrics" in metrics:
+                submodule_summary = []
+                for submodule in project.submodules:
+                    sub_name = submodule["name"]
+                    if sub_name in metrics["submodule_metrics"]:
+                        sub_data = metrics["submodule_metrics"][sub_name]
+                        submodule_summary.append({
+                            "name": sub_name,
+                            "path": submodule.get("path", ""),
+                            "total_issues": sub_data["total"],
+                            "in_progress": sub_data["in_progress_count"],
+                            "blocked": sub_data["blocked_count"],
+                            "completion_rate": sub_data["completion_rate"]
+                        })
+                data["submodule_summary"] = submodule_summary
+
+            # Generate helpful hints
+            hints = []
+            if has_submodules:
+                hints.append("Use pm_list_issues --submodule <name> to filter by submodule")
+            if metrics["counts"]["by_status"].get("blocked", 0) > 0:
+                hints.append("pm_blocked_issues to see what's blocked")
+
+            return ok("Project status with submodule breakdown", data, hints=hints)
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(
@@ -176,11 +202,23 @@ def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
             pid = _require_project_id(input.project_id)
             if not pid:
                 return err("No project found. Initialize one with pm_init_project()", {})
+
+            # If submodule is specified, use it as the module filter
+            module_filter = input.submodule if input.submodule else input.module
+
             issues = PMDatabase.find_issues(pid,
                                             status=input.status, priority=input.priority,
-                                            module=input.module, q=None, query=None)
-            return ok(f"Found {len(issues)} issues",
-                      {"issues": [i.to_rich_dict() for i in issues], "count": len(issues)})
+                                            module=module_filter, q=None, query=None)
+
+            # Add submodule info to response if filtering by submodule
+            response_data = {
+                "issues": [i.to_rich_dict() for i in issues],
+                "count": len(issues)
+            }
+            if input.submodule:
+                response_data["filtered_by_submodule"] = input.submodule
+
+            return ok(f"Found {len(issues)} issues", response_data)
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(
@@ -500,6 +538,11 @@ def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
             # ensure project_id is set / auto-scoped
             if not input.project_id:
                 object.__setattr__(input, "project_id", _require_project_id(None))
+
+            # Handle submodule - if provided, use it as the module
+            if input.submodule:
+                object.__setattr__(input, "module", input.submodule)
+
             issue = PMDatabase.create_issue(input)
             return ok("Issue created", {"issue": issue.to_rich_dict()},
                       hints=[f"Start work: pm_start_work --issue-key {issue.key}"])
@@ -1559,11 +1602,44 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
             path = Path(project_path or ".").resolve()
             slug = (project_name or path.name).lower().replace(" ", "-")
 
+            # Detect submodules by looking for subdirectories with specific patterns
+            submodules = []
+            for subdir in path.iterdir():
+                if subdir.is_dir() and not subdir.name.startswith('.') and not subdir.name.startswith('__'):
+                    # Check if it looks like a submodule (has backend, frontend, infra, etc. in name)
+                    # or has its own package.json, requirements.txt, etc.
+                    subdir_name = subdir.name.lower()
+                    is_submodule = False
+
+                    # Check by naming patterns
+                    if any(pattern in subdir_name for pattern in ['backend', 'frontend', 'infra', 'api', 'web', 'mobile', 'testing', 'docs']):
+                        is_submodule = True
+                    # Check by project files
+                    elif any((subdir / f).exists() for f in ['package.json', 'requirements.txt', 'pom.xml', 'build.gradle', 'Cargo.toml']):
+                        is_submodule = True
+
+                    if is_submodule:
+                        # Check if it has its own git repo
+                        has_git = (subdir / '.git').exists()
+                        submodules.append({
+                            'name': subdir.name,
+                            'path': str(subdir.relative_to(path)),
+                            'absolute_path': str(subdir),
+                            'is_separate_repo': has_git,
+                            'manage_separately': True
+                        })
+
+            metadata = {
+                "vcs": {"git_root": str(path), "default_branch": "main"},
+                "submodules": submodules
+            }
+
             # upsert-like behavior
             existing = [p for p in PMDatabase.get_all_projects() if Path(p.absolute_path).resolve() == path]
             if existing:
                 proj = existing[0]
                 proj.project_slug = slug
+                proj.metadata = json.dumps(metadata)
                 proj.updated_utc = datetime.utcnow()
                 proj.save()
             else:
@@ -1573,11 +1649,17 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
                     project_id=f"pn_{abs(hash(str(path))) % (10**16)}",
                     project_slug=slug,
                     absolute_path=str(path),
-                    metadata=json.dumps({"vcs": {"git_root": str(path), "default_branch": "main"}}),
+                    metadata=json.dumps(metadata),
                     created_utc=datetime.utcnow(),
                     updated_utc=datetime.utcnow(),
                 )
-            return ok("Project initialized", {"project": PMDatabase._project_to_dict(proj)})
+
+            result_data = PMDatabase._project_to_dict(proj)
+            if submodules:
+                result_data['submodules_detected'] = len(submodules)
+                result_data['submodule_names'] = [s['name'] for s in submodules]
+
+            return ok("Project initialized with submodule detection", {"project": result_data})
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(

@@ -842,17 +842,48 @@ class PMDatabase:
         return wl
 
     @classmethod
-    def project_metrics(cls, project):
-        """Calculate project metrics"""
+    def project_metrics(cls, project, include_submodule_breakdown=False):
+        """Calculate project metrics with optional submodule breakdown"""
         issues = list(project.issues)
         status_counts = {}
         priority_counts = {}
         module_counts = {}
+        submodule_metrics = {}
+
         for i in issues:
             status_counts[i.status] = status_counts.get(i.status, 0) + 1
             priority_counts[i.priority] = priority_counts.get(i.priority, 0) + 1
             if i.module:
                 module_counts[i.module] = module_counts.get(i.module, 0) + 1
+
+                # If this module is a submodule, track detailed metrics
+                if include_submodule_breakdown:
+                    if i.module not in submodule_metrics:
+                        submodule_metrics[i.module] = {
+                            "total": 0,
+                            "by_status": {},
+                            "by_priority": {},
+                            "by_type": {},
+                            "in_progress_count": 0,
+                            "blocked_count": 0,
+                            "completion_rate": 0.0
+                        }
+                    sub = submodule_metrics[i.module]
+                    sub["total"] += 1
+                    sub["by_status"][i.status] = sub["by_status"].get(i.status, 0) + 1
+                    sub["by_priority"][i.priority] = sub["by_priority"].get(i.priority, 0) + 1
+                    sub["by_type"][i.type] = sub["by_type"].get(i.type, 0) + 1
+                    if i.status == "in_progress":
+                        sub["in_progress_count"] += 1
+                    elif i.status == "blocked":
+                        sub["blocked_count"] += 1
+
+        # Calculate completion rates for submodules
+        if include_submodule_breakdown:
+            for module_name, metrics in submodule_metrics.items():
+                done_count = metrics["by_status"].get("done", 0) + metrics["by_status"].get("archived", 0)
+                if metrics["total"] > 0:
+                    metrics["completion_rate"] = round(done_count / metrics["total"] * 100, 1)
 
         recent_work = (WorkLog
                       .select()
@@ -871,7 +902,7 @@ class PMDatabase:
                 "timestamp_utc": w.timestamp_utc.isoformat() + "Z",
             })
 
-        return {
+        result = {
             "counts": {
                 "total": len(issues),
                 "by_status": status_counts,
@@ -880,6 +911,11 @@ class PMDatabase:
             },
             "recent_work": recent,
         }
+
+        if include_submodule_breakdown and submodule_metrics:
+            result["submodule_metrics"] = submodule_metrics
+
+        return result
 
     @classmethod
     def owner_capacity(cls, project):

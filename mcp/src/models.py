@@ -66,7 +66,11 @@ class ListIssuesInput(BaseModel):
     )
     module: Optional[str] = Field(
         default=None,
-        description="Filter by module/component name"
+        description="Filter by module/component name (can be submodule name)"
+    )
+    submodule: Optional[str] = Field(
+        default=None,
+        description="Filter by specific submodule (e.g., 'learnio-backend'). Overrides module filter if provided."
     )
     owner: Optional[str] = Field(
         default=None,
