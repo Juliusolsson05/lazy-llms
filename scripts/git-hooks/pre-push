@@ -1,0 +1,48 @@
+#!/bin/bash
+# Git pre-push hook to prevent pushing database files to main/origin remote
+# Install by copying to .git/hooks/pre-push and making executable
+
+# Get the remote name being pushed to
+remote="$1"
+
+# Check if pushing to origin or main remote
+if [ "$remote" = "origin" ] || [ "$remote" = "main" ] || [ "$remote" = "upstream" ]; then
+    # Check if any database or data files are being pushed
+    if git diff --cached --name-only | grep -E "\.db$|\.sqlite$|\.sqlite3$|data/.*\.jsonl$|data/events\.jsonl|data/jira_lite\.db"; then
+        echo "❌ ERROR: Attempting to push database files to main remote!"
+        echo ""
+        echo "Database and data files should not be pushed to the public repository."
+        echo ""
+        echo "To sync your database between machines:"
+        echo "  1. Set up a private sync remote: make sync-setup"
+        echo "  2. Push to sync remote instead: make sync-push"
+        echo ""
+        echo "See docs/CROSS_MACHINE_SYNC.md for details."
+        echo ""
+        echo "If you really need to push (without database files):"
+        echo "  1. Remove database files from commit"
+        echo "  2. Ensure you're using the main .gitignore"
+        echo "  3. Try pushing again"
+        exit 1
+    fi
+fi
+
+# Check for other sensitive files that shouldn't be in any remote
+if git diff --cached --name-only | grep -E "\.env$|\.env\.local$|\.pem$|\.key$|\.crt$|credentials|secrets"; then
+    echo "⚠️  WARNING: You're about to push potentially sensitive files!"
+    echo ""
+    echo "Files detected:"
+    git diff --cached --name-only | grep -E "\.env$|\.env\.local$|\.pem$|\.key$|\.crt$|credentials|secrets"
+    echo ""
+    echo "These files may contain secrets and should not be in version control."
+    echo "Consider using .env.example instead."
+    echo ""
+    read -p "Are you SURE you want to push these files? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# All checks passed
+exit 0

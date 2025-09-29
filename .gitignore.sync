@@ -1,0 +1,75 @@
+# Sync-specific .gitignore
+# This file is used when syncing between personal machines
+# It INCLUDES database and local files that are normally ignored
+
+# ========================================
+# INCLUDED for sync (normally excluded)
+# ========================================
+# Keep these files when syncing between machines:
+# - SQLite databases
+# - Event logs
+# - Local configuration
+
+# ========================================
+# Still exclude these even for sync
+# ========================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Editor files (still exclude these)
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Log files (but keep server.log for debugging)
+*.log.old
+*.log.*.gz
+
+# Git
+.git/
+
+# Node (if any frontend is added)
+node_modules/
+
+# Docker
+.dockerignore
+
+# Private keys and secrets (NEVER sync these)
+*.pem
+*.key
+*.crt
+secrets/
+.env.local
+.env.*.local
+
+# Keep everything else, including:
+# ✅ data/jira_lite.db
+# ✅ data/events.jsonl
+# ✅ mcp/server.log
+# ✅ .env (be careful with this)

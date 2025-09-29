@@ -156,6 +156,47 @@ docker-demo: docker-run ## Complete Docker demo setup
 	@echo "   API: http://127.0.0.1:1929/api"
 	@echo "   Stop with: make docker-stop"
 
+# ===============================================
+# Cross-Machine Sync Commands
+# ===============================================
+# These commands help sync your database between multiple machines
+# See docs/CROSS_MACHINE_SYNC.md for detailed instructions
+
+sync-setup: ## Setup sync remote for cross-machine database sync
+	@$(MAKE) -f Makefile.sync setup-sync
+
+sync-push: ## Push everything (including DB) to private sync remote
+	@$(MAKE) -f Makefile.sync push-sync
+
+sync-pull: ## Pull everything (including DB) from private sync remote
+	@$(MAKE) -f Makefile.sync pull-sync
+
+sync-status: ## Show sync status and current mode
+	@$(MAKE) -f Makefile.sync status-sync
+
+sync-help: ## Show detailed sync help
+	@echo "📚 Cross-Machine Sync Help"
+	@echo "=========================="
+	@echo ""
+	@echo "This feature lets you sync your entire PM state (including database)"
+	@echo "between multiple machines using a private Git remote."
+	@echo ""
+	@echo "Quick Start:"
+	@echo "  1. Create a PRIVATE GitHub repo for sync (e.g., myproject-sync)"
+	@echo "  2. Run: make sync-setup"
+	@echo "  3. Enter your private repo URL when prompted"
+	@echo "  4. Use: make sync-push (to save) and make sync-pull (to load)"
+	@echo ""
+	@echo "Commands:"
+	@echo "  make sync-setup  - Initial setup (run once)"
+	@echo "  make sync-push   - Push your work to sync remote"
+	@echo "  make sync-pull   - Pull work from sync remote"
+	@echo "  make sync-status - Check sync status"
+	@echo ""
+	@echo "⚠️  WARNING: Never push database to main/origin remote!"
+	@echo ""
+	@echo "See docs/CROSS_MACHINE_SYNC.md for full documentation"
+
 # Quick demo that starts everything
 # Ultimate quickstart command
 quickstart: install-complete ## 🚀 Complete setup + Claude Code integration ready

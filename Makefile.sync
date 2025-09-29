@@ -1,0 +1,127 @@
+# Makefile for cross-machine database synchronization
+# This allows syncing the entire project state including database between machines
+
+# Colors for output
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
+
+.PHONY: help setup-sync push-sync pull-sync status-sync backup-before-sync switch-to-sync switch-to-main check-remote
+
+help:
+	@echo "$(GREEN)Cross-Machine Sync Commands$(NC)"
+	@echo "================================"
+	@echo "  $(YELLOW)setup-sync$(NC)        - Initial setup for sync remote"
+	@echo "  $(YELLOW)push-sync$(NC)         - Push everything (including DB) to sync remote"
+	@echo "  $(YELLOW)pull-sync$(NC)         - Pull everything (including DB) from sync remote"
+	@echo "  $(YELLOW)status-sync$(NC)       - Show sync status and which remote is active"
+	@echo "  $(YELLOW)backup-before-sync$(NC) - Create local backup before sync operations"
+	@echo "  $(YELLOW)switch-to-sync$(NC)    - Switch to sync gitignore (includes DB)"
+	@echo "  $(YELLOW)switch-to-main$(NC)    - Switch back to main gitignore (excludes DB)"
+	@echo ""
+	@echo "$(RED)⚠️  WARNING: Never push database to the main/origin remote!$(NC)"
+
+# Setup sync remote (run once per machine)
+setup-sync:
+	@echo "$(GREEN)Setting up sync remote...$(NC)"
+	@echo "Enter your private sync repository URL (e.g., git@github.com:yourname/project-sync.git):"
+	@read -r SYNC_URL && git remote add sync "$$SYNC_URL" || echo "$(YELLOW)Sync remote might already exist$(NC)"
+	@git remote -v
+	@echo "$(GREEN)Creating git hooks for safety...$(NC)"
+	@mkdir -p .git/hooks
+	@echo '#!/bin/bash\nif [ "$$1" = "origin" ] || [ "$$1" = "main" ]; then\n  if git diff --cached --name-only | grep -E "\.db$$|data/.*\.jsonl$$"; then\n    echo "ERROR: Attempting to push database files to main remote!"\n    echo "Use '\''make push-sync'\'' to sync with your private remote instead."\n    exit 1\n  fi\nfi' > .git/hooks/pre-push
+	@chmod +x .git/hooks/pre-push
+	@echo "$(GREEN)✓ Sync remote configured$(NC)"
+
+# Create backup before any sync operation
+backup-before-sync:
+	@echo "$(GREEN)Creating backup...$(NC)"
+	@mkdir -p backups
+	@if [ -f data/jira_lite.db ]; then \
+		cp data/jira_lite.db "backups/jira_lite_$$(date +%Y%m%d_%H%M%S).db"; \
+		echo "$(GREEN)✓ Database backed up$(NC)"; \
+	fi
+	@if [ -f data/events.jsonl ]; then \
+		cp data/events.jsonl "backups/events_$$(date +%Y%m%d_%H%M%S).jsonl"; \
+		echo "$(GREEN)✓ Events backed up$(NC)"; \
+	fi
+
+# Switch to sync gitignore
+switch-to-sync:
+	@echo "$(YELLOW)Switching to sync mode (includes database)...$(NC)"
+	@cp .gitignore .gitignore.main
+	@cp .gitignore.sync .gitignore
+	@echo "$(GREEN)✓ Now using .gitignore.sync$(NC)"
+
+# Switch back to main gitignore
+switch-to-main:
+	@echo "$(YELLOW)Switching to main mode (excludes database)...$(NC)"
+	@if [ -f .gitignore.main ]; then \
+		cp .gitignore.main .gitignore; \
+		rm .gitignore.main; \
+		echo "$(GREEN)✓ Now using main .gitignore$(NC)"; \
+	else \
+		echo "$(RED)No backup of main .gitignore found!$(NC)"; \
+	fi
+
+# Check which remote we're set to push to
+check-remote:
+	@echo "$(GREEN)Current git remotes:$(NC)"
+	@git remote -v
+	@echo ""
+	@echo "$(GREEN)Current branch upstream:$(NC)"
+	@git branch -vv | grep '\*'
+
+# Push to sync remote (includes database)
+push-sync: backup-before-sync switch-to-sync
+	@echo "$(GREEN)Pushing everything to sync remote...$(NC)"
+	@git add -A
+	@git diff --cached --stat
+	@echo ""
+	@echo "$(YELLOW)This will push the above changes including database files.$(NC)"
+	@echo "Press Enter to continue or Ctrl+C to cancel..."
+	@read -r
+	@git commit -m "sync: Full state sync including database - $$(date +%Y-%m-%d_%H:%M:%S)" || echo "$(YELLOW)No changes to commit$(NC)"
+	@git push sync $$(git branch --show-current) || git push -u sync $$(git branch --show-current)
+	@$(MAKE) switch-to-main
+	@echo "$(GREEN)✓ Sync complete$(NC)"
+
+# Pull from sync remote (includes database)
+pull-sync: backup-before-sync switch-to-sync
+	@echo "$(GREEN)Pulling everything from sync remote...$(NC)"
+	@git stash push -m "sync-stash-$$(date +%Y%m%d_%H%M%S)"
+	@git pull sync $$(git branch --show-current)
+	@git stash pop || echo "$(YELLOW)No stash to pop or conflicts occurred$(NC)"
+	@$(MAKE) switch-to-main
+	@echo "$(GREEN)✓ Sync complete$(NC)"
+	@echo "$(YELLOW)Note: Restart any running services to use the updated database$(NC)"
+
+# Show sync status
+status-sync:
+	@echo "$(GREEN)=== Sync Status ===$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Current .gitignore mode:$(NC)"
+	@if diff -q .gitignore .gitignore.sync > /dev/null 2>&1; then \
+		echo "  $(RED)SYNC MODE (database included)$(NC)"; \
+	else \
+		echo "  $(GREEN)MAIN MODE (database excluded)$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(YELLOW)Git remotes:$(NC)"
+	@git remote -v | sed 's/^/  /'
+	@echo ""
+	@echo "$(YELLOW)Database status:$(NC)"
+	@if [ -f data/jira_lite.db ]; then \
+		echo "  Database exists: $$(du -h data/jira_lite.db | cut -f1)"; \
+		echo "  Last modified: $$(date -r data/jira_lite.db '+%Y-%m-%d %H:%M:%S')"; \
+	else \
+		echo "  $(RED)No database found$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(YELLOW)Last sync commit:$(NC)"
+	@git log --oneline -n 5 --grep="sync:" --all | sed 's/^/  /' || echo "  No sync commits found"
+
+# Quick sync operations
+quick-push: push-sync
+quick-pull: pull-sync
