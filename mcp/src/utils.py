@@ -51,6 +51,7 @@ def _path_is_within(child: Path, parent: Path) -> bool:
 def resolve_project_id_from_env_or_cwd(PMDatabase) -> Optional[str]:
     """
     Auto-scope: prefer explicit env var, else detect by current working directory.
+    Enhanced for global mode with better path matching.
     Returns matching project_id or None if not found.
     """
     # 1) Explicit override
@@ -64,11 +65,14 @@ def resolve_project_id_from_env_or_cwd(PMDatabase) -> Optional[str]:
     cwd = Path.cwd()
     for p in PMDatabase.get_all_projects():  # returns *models*
         try:
-            project_path = Path(p.absolute_path)
+            project_path = Path(p.absolute_path).resolve()
         except Exception:
             continue
+        # Check if CWD is within project path
         if cwd == project_path or _path_is_within(cwd, project_path):
             return p.project_id
+
+    # 3) In global mode, could return None to trigger auto-initialization
     return None
 
 class ScopeError(Exception):
@@ -76,26 +80,92 @@ class ScopeError(Exception):
 
 def strict_project_scope(tool_fn: Callable[..., T]) -> Callable[..., T]:
     """
-    HARD rule:
-    - Resolve project_id from CWD (or PM_DEFAULT_PROJECT_ID)
-    - Inject it into input.project_id
-    - If input.project_id is present and differs → error
-    - If cannot resolve → error
+    Project scoping decorator with global mode support:
+    - In project mode (PM_DEFAULT_PROJECT_ID set): strict enforcement
+    - In global mode: attempt auto-detection and initialization
+    - Inject resolved project_id into input
     """
     @functools.wraps(tool_fn)
     def wrapper(*args, **kwargs):
         input_obj = kwargs.get("input")
         if input_obj is None and len(args) >= 2:
             input_obj = args[1]
-        from database import PMDatabase  # local import to avoid cycles
+
+        from database import PMDatabase, DatabaseSession, Project  # local import to avoid cycles
+        from datetime import datetime
+
+        # Check if in global mode (no PM_DEFAULT_PROJECT_ID)
+        is_global = Config.DEFAULT_PROJECT_ID is None
+
+        # Try to resolve project ID
         resolved = resolve_project_id_from_env_or_cwd(PMDatabase)
-        if not resolved:
+
+        # In global mode, try auto-initialization if no project found
+        if not resolved and is_global:
+            with DatabaseSession():
+                # Auto-initialize project from CWD
+                try:
+                    cwd = Path.cwd().resolve()
+
+                    # Check if CWD is a project-like directory
+                    is_git_repo = (cwd / '.git').exists()
+                    has_project_files = any([
+                        (cwd / 'package.json').exists(),
+                        (cwd / 'requirements.txt').exists(),
+                        (cwd / 'Cargo.toml').exists(),
+                        (cwd / 'go.mod').exists(),
+                    ])
+
+                    if is_git_repo or has_project_files:
+                        # Create new project
+                        project_slug = cwd.name.lower().replace(' ', '-')
+                        project_id = f"pn_{abs(hash(str(cwd))) % (10**16)}"
+
+                        # Check if already exists
+                        existing = [p for p in PMDatabase.get_all_projects()
+                                  if Path(p.absolute_path).resolve() == cwd]
+                        if existing:
+                            resolved = existing[0].project_id
+                        else:
+                            metadata = {
+                                "vcs": {"git_root": str(cwd), "default_branch": "main"},
+                                "submodules": [],
+                                "auto_initialized": True,
+                                "global_mode": True
+                            }
+
+                            proj = Project.create(
+                                project_id=project_id,
+                                project_slug=project_slug,
+                                absolute_path=str(cwd),
+                                metadata=json.dumps(metadata),
+                                created_utc=datetime.utcnow(),
+                                updated_utc=datetime.utcnow(),
+                            )
+                            resolved = proj.project_id
+                            print(f"✨ Auto-initialized project in global mode: {project_slug}")
+                except Exception:
+                    pass
+
+            if not resolved:
+                # Provide helpful error for global mode
+                raise ScopeError(
+                    "No project found in current directory. "
+                    "Run 'pm_init_project' first or navigate to a project directory."
+                )
+        elif not resolved:
+            # Non-global mode - strict requirement
             raise ScopeError("No project scope: run inside a registered project or set PM_DEFAULT_PROJECT_ID.")
+
+        # Inject project_id into input
         if hasattr(input_obj, "project_id"):
             passed = getattr(input_obj, "project_id")
             if passed and passed != resolved:
-                raise ScopeError(f"Project scope mismatch. Resolved={resolved}, Passed={passed}.")
+                # Allow override in global mode for flexibility
+                if not is_global:
+                    raise ScopeError(f"Project scope mismatch. Resolved={resolved}, Passed={passed}.")
             setattr(input_obj, "project_id", resolved)
+
         return cast(T, tool_fn(*args, **kwargs))
     return wrapper
 

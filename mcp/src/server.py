@@ -37,13 +37,92 @@ PMDatabase.initialize()
 
 # =============== Helper Functions ===============
 
+def _is_global_mode() -> bool:
+    """Detect if running in global mode (no project specified)."""
+    # Global mode when no PM_DEFAULT_PROJECT_ID is set and not running from a project directory
+    return Config.DEFAULT_PROJECT_ID is None
+
+def _auto_initialize_project() -> Optional[str]:
+    """Auto-initialize project from CWD if none exists."""
+    try:
+        cwd = Path.cwd().resolve()
+
+        # Check if CWD is a git repository or has project-like structure
+        is_git_repo = (cwd / '.git').exists()
+        has_project_files = any([
+            (cwd / 'package.json').exists(),
+            (cwd / 'requirements.txt').exists(),
+            (cwd / 'Cargo.toml').exists(),
+            (cwd / 'go.mod').exists(),
+            (cwd / 'pom.xml').exists(),
+            (cwd / 'build.gradle').exists(),
+            (cwd / '.pm.json').exists(),  # PM marker file
+        ])
+
+        if is_git_repo or has_project_files:
+            # Auto-initialize project
+            from database import Project
+            from datetime import datetime
+            import json
+
+            with DatabaseSession():
+                project_name = cwd.name
+                project_slug = project_name.lower().replace(' ', '-')
+
+                # Check if already exists
+                existing = [p for p in PMDatabase.get_all_projects()
+                          if Path(p.absolute_path).resolve() == cwd]
+                if existing:
+                    return existing[0].project_id
+
+                # Create new project
+                project_id = f"pn_{abs(hash(str(cwd))) % (10**16)}"
+
+                # Detect submodules
+                submodules = []
+                for subdir in cwd.iterdir():
+                    if subdir.is_dir() and not subdir.name.startswith('.') and not subdir.name.startswith('__'):
+                        subdir_name = subdir.name.lower()
+                        if any(pattern in subdir_name for pattern in ['backend', 'frontend', 'api', 'web', 'mobile', 'infra']):
+                            submodules.append({
+                                'name': subdir.name,
+                                'path': str(subdir.relative_to(cwd)),
+                                'is_separate_repo': (subdir / '.git').exists(),
+                                'manage_separately': False
+                            })
+
+                metadata = {
+                    "vcs": {"git_root": str(cwd), "default_branch": "main"},
+                    "submodules": submodules,
+                    "auto_initialized": True,
+                    "initialized_from": "global_mode"
+                }
+
+                proj = Project.create(
+                    project_id=project_id,
+                    project_slug=project_slug,
+                    absolute_path=str(cwd),
+                    metadata=json.dumps(metadata),
+                    created_utc=datetime.utcnow(),
+                    updated_utc=datetime.utcnow(),
+                )
+
+                print(f"✅ Auto-initialized project: {project_slug} ({project_id})")
+                return proj.project_id
+    except Exception as e:
+        print(f"⚠️ Could not auto-initialize project: {type(e).__name__}")
+        return None
+
 def _auto_project_id() -> Optional[str]:
-    """Pick project by CWD if PM_DEFAULT_PROJECT_ID not set."""
+    """Pick project by CWD, with auto-initialization in global mode."""
+    # 1. Check explicit environment variable
     env = Config.get_default_project_id()
     if env:
         return env
+
+    # 2. Try to find matching existing project
     try:
-        cwd = Path(os.getcwd()).resolve()
+        cwd = Path.cwd().resolve()
         for p in PMDatabase.get_all_projects():
             try:
                 p_path = Path(p.absolute_path).resolve()
@@ -54,11 +133,19 @@ def _auto_project_id() -> Optional[str]:
                 continue
     except Exception:
         pass
-    # Fallback: first project if any
+
+    # 3. In global mode, try to auto-initialize if no project found
+    if _is_global_mode():
+        initialized_id = _auto_initialize_project()
+        if initialized_id:
+            return initialized_id
+
+    # 4. Fallback: first project if any
     projects = PMDatabase.get_all_projects()
     return projects[0].project_id if projects else None
 
 def _require_project_id(explicit: Optional[str]) -> Optional[str]:
+    """Get project ID with fallback to auto-detection."""
     return explicit or _auto_project_id()
 
 def get_default_project_id() -> Optional[str]:
@@ -139,6 +226,15 @@ def pm_status(input: PMStatusInput) -> Dict[str, Any]:
         with DatabaseSession():
             pid = _require_project_id(input.project_id)
             if not pid:
+                # Provide helpful guidance in global mode
+                if _is_global_mode():
+                    hints = [
+                        "Navigate to a project directory to auto-initialize",
+                        "Or run pm_init_project to manually initialize a project",
+                        "Example: cd /path/to/your/project"
+                    ]
+                    return err("No project found in current directory.",
+                             {"mode": "global", "cwd": str(Path.cwd())}, hints)
                 return err("No project found. Initialize one with pm_init_project()", {})
             project = PMDatabase.get_project(pid)
             if not project:
@@ -201,6 +297,9 @@ def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
         with DatabaseSession():
             pid = _require_project_id(input.project_id)
             if not pid:
+                if _is_global_mode():
+                    return err("No project in current directory. Navigate to a project or run pm_init_project.",
+                             {"mode": "global", "cwd": str(Path.cwd())})
                 return err("No project found. Initialize one with pm_init_project()", {})
 
             # If submodule is specified, use it as the module filter
@@ -381,9 +480,29 @@ def pm_list_projects() -> Dict[str, Any]:
         with DatabaseSession():
             projects = PMDatabase.get_all_projects()
             # Convert models to dicts
-            data = {"projects": [PMDatabase._project_to_dict(p) for p in projects],
-                    "count": len(projects)}
-        return ok(f"Found {len(projects)} projects", data)
+            project_list = []
+            cwd = Path.cwd().resolve()
+
+            for p in projects:
+                p_dict = PMDatabase._project_to_dict(p)
+                # Mark if this is the current project
+                try:
+                    p_path = Path(p.absolute_path).resolve()
+                    if cwd == p_path or str(cwd).startswith(str(p_path) + os.sep):
+                        p_dict['is_current'] = True
+                except:
+                    pass
+                project_list.append(p_dict)
+
+            data = {"projects": project_list, "count": len(projects)}
+
+            hints = []
+            if _is_global_mode():
+                hints.append("Running in global mode - projects auto-detected from working directory")
+                if not projects:
+                    hints.append("Navigate to a project directory to auto-initialize")
+
+            return ok(f"Found {len(projects)} projects", data, hints)
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(
@@ -1555,12 +1674,19 @@ def main():
                        help="Validate configuration and exit")
     parser.add_argument("--database-path", type=str,
                        help="Override database path")
+    parser.add_argument("--global-mode", action="store_true",
+                       help="Force global mode (auto-detect projects from CWD)")
 
     args = parser.parse_args()
 
     # Override database path if provided
     if args.database_path:
         Config.set_database_path(args.database_path)
+
+    # Force global mode if requested
+    if args.global_mode:
+        Config.DEFAULT_PROJECT_ID = None
+        os.environ.pop('PM_DEFAULT_PROJECT_ID', None)
 
     # Validate configuration
     if args.validate_config:
@@ -1575,6 +1701,14 @@ def main():
         for msg in messages:
             print(f"   - {msg}")
 
+        # Add global mode status
+        if _is_global_mode():
+            print("\n🌍 Global Mode: ENABLED")
+            print("   Projects will be auto-detected from working directory")
+        else:
+            print("\n📁 Project Mode: ENABLED")
+            print(f"   Default project: {Config.DEFAULT_PROJECT_ID}")
+
         return 0 if is_valid else 1
 
     # Initialize database connection
@@ -1587,7 +1721,14 @@ def main():
             projects = PMDatabase.get_all_projects()
             print(f"   Found {len(projects)} projects")
 
-            if projects and not Config.DEFAULT_PROJECT_ID:
+            # Check mode and provide appropriate feedback
+            if _is_global_mode():
+                print("\n🌍 Running in GLOBAL MODE")
+                print("   Projects will be auto-detected from working directory")
+                print("   Navigate to a project directory to start working")
+                if not projects:
+                    print("   ℹ️ No projects initialized yet - they'll be created automatically")
+            elif projects and not Config.DEFAULT_PROJECT_ID:
                 # projects is now a list of models, not dicts
                 print(f"   Using first project as default: {projects[0].project_id}")
 
@@ -1618,10 +1759,15 @@ def main():
 # =============== Initialization Tools ===============
 
 @mcp.tool()
-def pm_init_project(project_path: str = ".", project_name: Optional[str] = None) -> Dict[str, Any]:
+def pm_init_project(project_path: str = ".", project_name: Optional[str] = None, auto_mode: bool = False) -> Dict[str, Any]:
     """
     Initialize a new project for PM tracking. Scans directory structure,
     creates project metadata, and generates stable project ID.
+
+    Args:
+        project_path: Path to project directory (default: current directory)
+        project_name: Optional project name (defaults to directory name)
+        auto_mode: Whether this is an automatic initialization in global mode
     """
     try:
         with DatabaseSession():
@@ -1659,7 +1805,9 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
 
             metadata = {
                 "vcs": {"git_root": str(path), "default_branch": "main"},
-                "submodules": submodules
+                "submodules": submodules,
+                "auto_initialized": auto_mode,
+                "global_mode_compatible": True
             }
 
             # upsert-like behavior
@@ -1687,7 +1835,13 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
                 result_data['submodules_detected'] = len(submodules)
                 result_data['submodule_names'] = [s['name'] for s in submodules]
 
-            return ok("Project initialized with submodule detection", {"project": result_data})
+            # Add hints for global mode
+            hints = []
+            if _is_global_mode():
+                hints.append("Running in global mode - project auto-detected from working directory")
+                hints.append(f"To set as default: export PM_DEFAULT_PROJECT_ID={proj.project_id}")
+
+            return ok("Project initialized with submodule detection", {"project": result_data}, hints=hints)
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(
