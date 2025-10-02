@@ -36,4 +36,3 @@ pm_commit               # Save changes
 
 Database: /Users/juliusolsson/Desktop/Development/lazy-llms/data/jira_lite.db
 Project: lazy-llms-test with real PM tracking
-test change
