@@ -868,6 +868,30 @@ async def ensure_project_git_setup(project_path: Path) -> bool:
     except Exception:
         return False
 
+def ensure_project_git_setup_sync(project_path: Path) -> bool:
+    """Synchronous version - ensure project has proper git setup"""
+    try:
+        # Check if it's a git repo
+        result = run_git_command_sync(['status'], cwd=project_path)
+        if not result['success']:
+            # Initialize git repo if not exists
+            init_result = run_git_command_sync(['init'], cwd=project_path)
+            if not init_result['success']:
+                return False
+
+        # Setup git identity
+        run_git_command_sync(
+            ['config', 'user.name', Config.GIT_USER_NAME or 'PM Agent'],
+            cwd=project_path
+        )
+        run_git_command_sync(
+            ['config', 'user.email', Config.GIT_USER_EMAIL or 'pm@local'],
+            cwd=project_path
+        )
+        return True
+    except Exception:
+        return False
+
 class RateLimiter:
     """Simple rate limiter for git operations"""
     def __init__(self, max_operations: int = 10, window_seconds: int = 60):

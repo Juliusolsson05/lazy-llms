@@ -751,7 +751,7 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
                             project_path = Path(project_dict['absolute_path']) if project_dict else Path.cwd()
 
                         # Ensure git setup
-                        if not asyncio.run(ensure_project_git_setup(project_path)):
+                        if not ensure_project_git_setup_sync(project_path):
                             result_data['branch_warning'] = 'Git setup incomplete - manual branch creation recommended'
                         else:
                             git_result = run_git_command_sync(['checkout', '-b', branch_name], cwd=project_path)
@@ -1125,7 +1125,7 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
                         break
 
             # Ensure git setup
-            setup_success = asyncio.run(ensure_project_git_setup(working_path))
+            setup_success = ensure_project_git_setup_sync(working_path)
             if not setup_success:
                 return standard_response(
                     success=False,
@@ -1255,7 +1255,7 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
                         break
 
             # Ensure git identity is set
-            setup_success = asyncio.run(ensure_project_git_setup(working_path))
+            setup_success = ensure_project_git_setup_sync(working_path)
             if not setup_success:
                 return standard_response(
                     success=False,
@@ -1333,9 +1333,11 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
                 )
 
     except Exception as e:
+        tb = traceback.format_exc()
         return standard_response(
             success=False,
-            message=f"Commit failed: {type(e).__name__}",
+            message=f"Commit failed: {str(e)}",
+            data={"error_details": {"error": str(e), "type": type(e).__name__, "traceback": tb}},
             hints=["Check git repository status", "Verify working directory"]
         )
 
