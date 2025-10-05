@@ -39,6 +39,33 @@ PMDatabase.initialize()
 
 from command_config import is_command_enabled as _is_command_enabled
 
+def conditional_mcp_tool(func):
+    """Only register as MCP tool if command is enabled - prevents context bloat"""
+    import functools
+    command_name = func.__name__
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Log usage for enabled commands
+        try:
+            with DatabaseSession():
+                project_id = None
+                if args and hasattr(args[0], 'project_id'):
+                    project_id = getattr(args[0], 'project_id', None)
+                PMDatabase.log_command_usage(command_name, project_id)
+        except Exception:
+            pass
+
+        return func(*args, **kwargs)
+
+    # Only register with MCP if the command is enabled
+    if _is_command_enabled(command_name):
+        return mcp.tool()(wrapper)
+    else:
+        # Return unwrapped function (not registered with MCP)
+        print(f"⚠️  Skipping registration of disabled command: {command_name}")
+        return wrapper
+
 def log_command_usage_decorator(func):
     """Decorator to log MCP command usage for analytics and enforce command filtering"""
     import functools
