@@ -8,19 +8,11 @@ from datetime import datetime, timedelta
 sys.path.insert(0, str(Path(__file__).parent.parent / "mcp/src"))
 
 from database import PMDatabase, DatabaseSession
-
-def load_command_config():
-    """Load command configuration"""
-    config_path = Path(__file__).parent.parent / "mcp/mcp_commands.json"
-    if config_path.exists():
-        with open(config_path) as f:
-            return json.load(f)
-    return {"commands": {}}
+from command_config import get_all_commands
 
 def analyze_usage(days=30):
     """Analyze command usage and provide recommendations"""
-    config = load_command_config()
-    commands_config = config.get("commands", {})
+    commands_config = get_all_commands()
 
     print(f"\n📊 MCP Command Usage Analysis (Last {days} days)")
     print("=" * 70)

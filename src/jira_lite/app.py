@@ -190,6 +190,45 @@ def create_app(config_class=Config):
                              issue=issue.to_dict(),
                              action='Edit')
 
+    @app.route('/analytics')
+    def analytics():
+        """MCP Command Usage Analytics Dashboard"""
+        import sys
+        from pathlib import Path
+
+        mcp_path = Path(__file__).parent.parent.parent / "mcp" / "src"
+        sys.path.insert(0, str(mcp_path))
+
+        from database import PMDatabase, DatabaseSession
+        from command_config import get_all_commands
+
+        with DatabaseSession():
+            usage_stats = PMDatabase.get_command_usage_stats(days=30)
+            all_commands = get_all_commands()
+
+            used_commands = {s['command_name'] for s in usage_stats}
+            unused_commands = set(all_commands.keys()) - used_commands
+
+            category_stats = {
+                'required': {'total': 0, 'used': 0},
+                'recommended': {'total': 0, 'used': 0},
+                'optional': {'total': 0, 'used': 0}
+            }
+
+            for cmd_name, cmd_info in all_commands.items():
+                category = cmd_info['category']
+                category_stats[category]['total'] += 1
+                if cmd_name in used_commands:
+                    category_stats[category]['used'] += 1
+
+            return render_template('analytics.html',
+                                 usage_stats=usage_stats,
+                                 all_commands=all_commands,
+                                 used_count=len(used_commands),
+                                 unused_count=len(unused_commands),
+                                 category_stats=category_stats,
+                                 total_commands=len(all_commands))
+
     # Add Jinja2 filters
     app.jinja_env.filters['extract_summary'] = extract_summary
     app.jinja_env.filters['format_date'] = format_date

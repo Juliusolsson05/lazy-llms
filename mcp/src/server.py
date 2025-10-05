@@ -37,34 +37,18 @@ PMDatabase.initialize()
 
 # =============== Command Configuration and Analytics ===============
 
-def load_command_config() -> Dict[str, Any]:
-    """Load MCP command configuration"""
-    config_path = Path(__file__).parent.parent / "mcp_commands.json"
-    if config_path.exists():
-        try:
-            with open(config_path) as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"commands": {}}
-
-COMMAND_CONFIG = load_command_config()
-
-def is_command_enabled(command_name: str) -> bool:
-    """Check if a command is enabled in configuration"""
-    cmd_config = COMMAND_CONFIG.get("commands", {}).get(command_name, {})
-    return cmd_config.get("enabled", True)
+from command_config import is_command_enabled as _is_command_enabled
 
 def log_command_usage_decorator(func):
     """Decorator to log MCP command usage for analytics and enforce command filtering"""
     command_name = func.__name__
 
     def wrapper(*args, **kwargs):
-        if not is_command_enabled(command_name):
+        if not _is_command_enabled(command_name):
             return err(
                 f"Command '{command_name}' is disabled",
-                {"reason": "Command disabled in mcp_commands.json configuration"},
-                ["Edit mcp/mcp_commands.json to enable this command"]
+                {"reason": "Command disabled in command_config.py"},
+                ["Edit mcp/src/command_config.py to enable this command"]
             )
 
         try:

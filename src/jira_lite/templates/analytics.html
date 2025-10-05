@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}MCP Command Analytics - Jira-lite PM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">📊 MCP Command Analytics</h1>
+        <p class="text-gray-600 dark:text-gray-400">Track and optimize your MCP command usage (Last 30 days)</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Commands</div>
+            <div class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ total_commands }}</div>
+        </div>
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Commands Used</div>
+            <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ used_count }}</div>
+        </div>
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Commands Unused</div>
+            <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{ unused_count }}</div>
+        </div>
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Usage Rate</div>
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ ((used_count / total_commands * 100) | round | int) }}%</div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="bg-white dark:bg-dark-surface rounded-lg shadow mb-8 border border-gray-200 dark:border-dark-border">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Category Breakdown</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for category in ['required', 'recommended', 'optional'] %}
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">{{ category }}</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">
+                            {{ category_stats[category]['used'] }} / {{ category_stats[category]['total'] }} used
+                            ({{ ((category_stats[category]['used'] / category_stats[category]['total'] * 100) | round | int) if category_stats[category]['total'] > 0 else 0 }}%)
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div class="
+                            {% if category == 'required' %}bg-red-600 dark:bg-red-400{% endif %}
+                            {% if category == 'recommended' %}bg-blue-600 dark:bg-blue-400{% endif %}
+                            {% if category == 'optional' %}bg-green-600 dark:bg-green-400{% endif %}
+                            h-2 rounded-full transition-all duration-300"
+                             style="width: {{ ((category_stats[category]['used'] / category_stats[category]['total'] * 100) | round | int) if category_stats[category]['total'] > 0 else 0 }}%">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Used Commands -->
+    {% if usage_stats %}
+    <div class="bg-white dark:bg-dark-surface rounded-lg shadow mb-8 border border-gray-200 dark:border-dark-border">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Top Used Commands</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+                <thead class="bg-gray-50 dark:bg-dark-hover">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rank</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Command</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Count</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Used</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
+                    {% for stat in usage_stats[:15] %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-dark-hover">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ loop.index }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <code class="text-sm font-mono text-blue-600 dark:text-blue-400">{{ stat.command_name }}</code>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% set category = all_commands[stat.command_name]['category'] %}
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if category == 'required' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200{% endif %}
+                                {% if category == 'recommended' %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}
+                                {% if category == 'optional' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% endif %}">
+                                {{ category }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-semibold">{{ stat.count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {% if stat.last_used %}
+                                {{ stat.last_used[:10] }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-8">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div>
+                <h3 class="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">No Usage Data Found</h3>
+                <p class="text-yellow-700 dark:text-yellow-300">
+                    Commands haven't been used yet or logging just started. Use the PM system normally, then check back here to see usage patterns.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Optimization Tips -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">💡 Optimization Tips</h3>
+                <ul class="text-blue-700 dark:text-blue-300 space-y-2">
+                    <li>• <strong>Run `make optimize`</strong> in your terminal to get detailed recommendations</li>
+                    <li>• Commands can be disabled by editing <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">mcp/src/command_config.py</code></li>
+                    <li>• Unused optional commands are safe to disable</li>
+                    <li>• Required commands should never be disabled</li>
+                    <li>• After 1-2 weeks of usage, review and optimize your configuration</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
