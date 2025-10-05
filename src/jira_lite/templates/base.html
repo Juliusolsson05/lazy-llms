@@ -71,6 +71,26 @@
         {% block content %}{% endblock %}
     </main>
 
+    <footer class="mt-auto py-4 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                <div>
+                    <span>🎯 LLM-Native PM System</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/analytics" class="hover:text-primary dark:hover:text-primary-dark transition-colors flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        Analytics
+                    </a>
+                    <span>|</span>
+                    <a href="https://github.com/anthropics/lazy-llms" target="_blank" class="hover:text-primary dark:hover:text-primary-dark transition-colors">GitHub</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     <script>
         // Theme toggle functionality
         const themeToggleBtn = document.getElementById('theme-toggle');

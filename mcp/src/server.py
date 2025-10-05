@@ -35,15 +35,153 @@ mcp = FastMCP("pm-server")
 # Ensure database is initialized
 PMDatabase.initialize()
 
+# =============== Command Configuration and Analytics ===============
+
+from command_config import is_command_enabled as _is_command_enabled
+
+def conditional_mcp_tool(func):
+    """Only register as MCP tool if command is enabled - prevents context bloat"""
+    import functools
+    command_name = func.__name__
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Log usage for enabled commands
+        try:
+            with DatabaseSession():
+                project_id = None
+                if args and hasattr(args[0], 'project_id'):
+                    project_id = getattr(args[0], 'project_id', None)
+                PMDatabase.log_command_usage(command_name, project_id)
+        except Exception:
+            pass
+
+        return func(*args, **kwargs)
+
+    # Only register with MCP if the command is enabled
+    if _is_command_enabled(command_name):
+        return mcp.tool()(wrapper)
+    else:
+        # Return unwrapped function (not registered with MCP)
+        # Command disabled - not registering with MCP
+        return wrapper
+
+def log_command_usage_decorator(func):
+    """Decorator to log MCP command usage for analytics and enforce command filtering"""
+    import functools
+    command_name = func.__name__
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if not _is_command_enabled(command_name):
+            return err(
+                f"Command '{command_name}' is disabled",
+                {"reason": "Command disabled in command_config.py"},
+                ["Edit mcp/src/command_config.py to enable this command"]
+            )
+
+        try:
+            with DatabaseSession():
+                project_id = None
+                if args and hasattr(args[0], 'project_id'):
+                    project_id = getattr(args[0], 'project_id', None)
+
+                PMDatabase.log_command_usage(command_name, project_id)
+        except Exception:
+            pass
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
 # =============== Helper Functions ===============
 
+def _is_global_mode() -> bool:
+    """Detect if running in global mode (no project specified)."""
+    # Global mode when no PM_DEFAULT_PROJECT_ID is set and not running from a project directory
+    return Config.DEFAULT_PROJECT_ID is None
+
+def _auto_initialize_project() -> Optional[str]:
+    """Auto-initialize project from CWD if none exists."""
+    try:
+        cwd = Path.cwd().resolve()
+
+        # Check if CWD is a git repository or has project-like structure
+        is_git_repo = (cwd / '.git').exists()
+        has_project_files = any([
+            (cwd / 'package.json').exists(),
+            (cwd / 'requirements.txt').exists(),
+            (cwd / 'Cargo.toml').exists(),
+            (cwd / 'go.mod').exists(),
+            (cwd / 'pom.xml').exists(),
+            (cwd / 'build.gradle').exists(),
+            (cwd / '.pm.json').exists(),  # PM marker file
+        ])
+
+        if is_git_repo or has_project_files:
+            # Auto-initialize project
+            from database import Project
+            from datetime import datetime
+            import json
+
+            with DatabaseSession():
+                project_name = cwd.name
+                project_slug = project_name.lower().replace(' ', '-')
+
+                # Check if already exists
+                existing = [p for p in PMDatabase.get_all_projects()
+                          if Path(p.absolute_path).resolve() == cwd]
+                if existing:
+                    return existing[0].project_id
+
+                # Create new project
+                project_id = f"pn_{abs(hash(str(cwd))) % (10**16)}"
+
+                # Detect submodules
+                submodules = []
+                for subdir in cwd.iterdir():
+                    if subdir.is_dir() and not subdir.name.startswith('.') and not subdir.name.startswith('__'):
+                        subdir_name = subdir.name.lower()
+                        if any(pattern in subdir_name for pattern in ['backend', 'frontend', 'api', 'web', 'mobile', 'infra']):
+                            submodules.append({
+                                'name': subdir.name,
+                                'path': str(subdir.relative_to(cwd)),
+                                'is_separate_repo': (subdir / '.git').exists(),
+                                'manage_separately': False
+                            })
+
+                metadata = {
+                    "vcs": {"git_root": str(cwd), "default_branch": "main"},
+                    "submodules": submodules,
+                    "auto_initialized": True,
+                    "initialized_from": "global_mode"
+                }
+
+                proj = Project.create(
+                    project_id=project_id,
+                    project_slug=project_slug,
+                    absolute_path=str(cwd),
+                    metadata=json.dumps(metadata),
+                    created_utc=datetime.utcnow(),
+                    updated_utc=datetime.utcnow(),
+                )
+
+                print(f"✅ Auto-initialized project: {project_slug} ({project_id})")
+                return proj.project_id
+    except Exception as e:
+        print(f"⚠️ Could not auto-initialize project: {type(e).__name__}")
+        return None
+
 def _auto_project_id() -> Optional[str]:
-    """Pick project by CWD if PM_DEFAULT_PROJECT_ID not set."""
+    """Pick project by CWD, with auto-initialization in global mode."""
+    # 1. Check explicit environment variable
     env = Config.get_default_project_id()
     if env:
         return env
+
+    # 2. Try to find matching existing project
     try:
-        cwd = Path(os.getcwd()).resolve()
+        cwd = Path.cwd().resolve()
         for p in PMDatabase.get_all_projects():
             try:
                 p_path = Path(p.absolute_path).resolve()
@@ -54,11 +192,19 @@ def _auto_project_id() -> Optional[str]:
                 continue
     except Exception:
         pass
-    # Fallback: first project if any
+
+    # 3. In global mode, try to auto-initialize if no project found
+    if _is_global_mode():
+        initialized_id = _auto_initialize_project()
+        if initialized_id:
+            return initialized_id
+
+    # 4. Fallback: first project if any
     projects = PMDatabase.get_all_projects()
     return projects[0].project_id if projects else None
 
 def _require_project_id(explicit: Optional[str]) -> Optional[str]:
+    """Get project ID with fallback to auto-detection."""
     return explicit or _auto_project_id()
 
 def get_default_project_id() -> Optional[str]:
@@ -88,7 +234,7 @@ def standard_response(success: bool, message: str, data: Optional[Dict[str, Any]
 
 # =============== Discovery Tools ===============
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
     """
     Get comprehensive PM system documentation and workflow guidance.
@@ -108,7 +254,7 @@ def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
             hints=["Check system configuration"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_workflow(input: PMWorkflowInput) -> Dict[str, Any]:
     """
     Get methodology and best practices for PM-driven development.
@@ -128,7 +274,7 @@ def pm_workflow(input: PMWorkflowInput) -> Dict[str, Any]:
             hints=["Check system configuration"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_status(input: PMStatusInput) -> Dict[str, Any]:
     """
@@ -139,6 +285,15 @@ def pm_status(input: PMStatusInput) -> Dict[str, Any]:
         with DatabaseSession():
             pid = _require_project_id(input.project_id)
             if not pid:
+                # Provide helpful guidance in global mode
+                if _is_global_mode():
+                    hints = [
+                        "Navigate to a project directory to auto-initialize",
+                        "Or run pm_init_project to manually initialize a project",
+                        "Example: cd /path/to/your/project"
+                    ]
+                    return err("No project found in current directory.",
+                             {"mode": "global", "cwd": str(Path.cwd())}, hints)
                 return err("No project found. Initialize one with pm_init_project()", {})
             project = PMDatabase.get_project(pid)
             if not project:
@@ -190,7 +345,7 @@ def pm_status(input: PMStatusInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify project exists"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
     """
@@ -201,6 +356,9 @@ def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
         with DatabaseSession():
             pid = _require_project_id(input.project_id)
             if not pid:
+                if _is_global_mode():
+                    return err("No project in current directory. Navigate to a project or run pm_init_project.",
+                             {"mode": "global", "cwd": str(Path.cwd())})
                 return err("No project found. Initialize one with pm_init_project()", {})
 
             # If submodule is specified, use it as the module filter
@@ -228,7 +386,7 @@ def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify project exists"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
     """
@@ -327,7 +485,7 @@ def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify issue key format"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
     """
     Full-text search across all issue content.
@@ -371,7 +529,7 @@ def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Try simpler search terms"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_list_projects() -> Dict[str, Any]:
     """
     List all available projects in the system.
@@ -381,9 +539,29 @@ def pm_list_projects() -> Dict[str, Any]:
         with DatabaseSession():
             projects = PMDatabase.get_all_projects()
             # Convert models to dicts
-            data = {"projects": [PMDatabase._project_to_dict(p) for p in projects],
-                    "count": len(projects)}
-        return ok(f"Found {len(projects)} projects", data)
+            project_list = []
+            cwd = Path.cwd().resolve()
+
+            for p in projects:
+                p_dict = PMDatabase._project_to_dict(p)
+                # Mark if this is the current project
+                try:
+                    p_path = Path(p.absolute_path).resolve()
+                    if cwd == p_path or str(cwd).startswith(str(p_path) + os.sep):
+                        p_dict['is_current'] = True
+                except:
+                    pass
+                project_list.append(p_dict)
+
+            data = {"projects": project_list, "count": len(projects)}
+
+            hints = []
+            if _is_global_mode():
+                hints.append("Running in global mode - projects auto-detected from working directory")
+                if not projects:
+                    hints.append("Navigate to a project directory to auto-initialize")
+
+            return ok(f"Found {len(projects)} projects", data, hints)
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(
@@ -393,7 +571,7 @@ def pm_list_projects() -> Dict[str, Any]:
             hints=["Check database connectivity", "Ensure database is initialized"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_list_archived_issues(input: ListArchivedIssuesInput) -> Dict[str, Any]:
     """
@@ -452,7 +630,7 @@ def pm_list_archived_issues(input: ListArchivedIssuesInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify filters are valid"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_get_archived_issue(input: GetArchivedIssueInput) -> Dict[str, Any]:
     """
@@ -526,7 +704,7 @@ def pm_get_archived_issue(input: GetArchivedIssueInput) -> Dict[str, Any]:
 
 # =============== Planning Tools ===============
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
     """
@@ -555,7 +733,7 @@ def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify all required fields are provided"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
     """
@@ -632,7 +810,7 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
                             project_path = Path(project_dict['absolute_path']) if project_dict else Path.cwd()
 
                         # Ensure git setup
-                        if not asyncio.run(ensure_project_git_setup(project_path)):
+                        if not ensure_project_git_setup_sync(project_path):
                             result_data['branch_warning'] = 'Git setup incomplete - manual branch creation recommended'
                         else:
                             git_result = run_git_command_sync(['checkout', '-b', branch_name], cwd=project_path)
@@ -665,7 +843,7 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify issue is in startable state"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
     """
@@ -733,7 +911,7 @@ def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify time format (e.g., '2h', '30m')"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_update_status(input: UpdateStatusInput) -> Dict[str, Any]:
     """
@@ -842,7 +1020,7 @@ def pm_update_status(input: UpdateStatusInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify status transition is valid"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_delete_issue(input: DeleteIssueInput) -> Dict[str, Any]:
     """
@@ -939,7 +1117,7 @@ def pm_delete_issue(input: DeleteIssueInput) -> Dict[str, Any]:
 
 # =============== Git Integration Tools ===============
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
     """
@@ -1006,7 +1184,7 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
                         break
 
             # Ensure git setup
-            setup_success = asyncio.run(ensure_project_git_setup(working_path))
+            setup_success = ensure_project_git_setup_sync(working_path)
             if not setup_success:
                 return standard_response(
                     success=False,
@@ -1083,7 +1261,7 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
             hints=["Check git repository status", "Verify project path exists"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_commit(input: CommitInput) -> Dict[str, Any]:
     """
     Create a git commit with PM trailers and issue context.
@@ -1136,7 +1314,7 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
                         break
 
             # Ensure git identity is set
-            setup_success = asyncio.run(ensure_project_git_setup(working_path))
+            setup_success = ensure_project_git_setup_sync(working_path)
             if not setup_success:
                 return standard_response(
                     success=False,
@@ -1214,15 +1392,17 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
                 )
 
     except Exception as e:
+        tb = traceback.format_exc()
         return standard_response(
             success=False,
-            message=f"Commit failed: {type(e).__name__}",
+            message=f"Commit failed: {str(e)}",
+            data={"error_details": {"error": str(e), "type": type(e).__name__, "traceback": tb}},
             hints=["Check git repository status", "Verify working directory"]
         )
 
 # =============== Analytics Tools ===============
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_my_queue(input: MyQueueInput) -> Dict[str, Any]:
     """
@@ -1326,7 +1506,7 @@ def pm_my_queue(input: MyQueueInput) -> Dict[str, Any]:
             hints=["Check database connectivity"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_blocked_issues(input: BlockedIssuesInput) -> Dict[str, Any]:
     """
     Find and analyze blocked issues with unblocking recommendations.
@@ -1417,7 +1597,7 @@ def pm_blocked_issues(input: BlockedIssuesInput) -> Dict[str, Any]:
 
 # =============== Workflow Tools ===============
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_daily_standup(input: DailyStandupInput) -> Dict[str, Any]:
     """
@@ -1555,12 +1735,19 @@ def main():
                        help="Validate configuration and exit")
     parser.add_argument("--database-path", type=str,
                        help="Override database path")
+    parser.add_argument("--global-mode", action="store_true",
+                       help="Force global mode (auto-detect projects from CWD)")
 
     args = parser.parse_args()
 
     # Override database path if provided
     if args.database_path:
         Config.set_database_path(args.database_path)
+
+    # Force global mode if requested
+    if args.global_mode:
+        Config.DEFAULT_PROJECT_ID = None
+        os.environ.pop('PM_DEFAULT_PROJECT_ID', None)
 
     # Validate configuration
     if args.validate_config:
@@ -1575,6 +1762,14 @@ def main():
         for msg in messages:
             print(f"   - {msg}")
 
+        # Add global mode status
+        if _is_global_mode():
+            print("\n🌍 Global Mode: ENABLED")
+            print("   Projects will be auto-detected from working directory")
+        else:
+            print("\n📁 Project Mode: ENABLED")
+            print(f"   Default project: {Config.DEFAULT_PROJECT_ID}")
+
         return 0 if is_valid else 1
 
     # Initialize database connection
@@ -1587,7 +1782,14 @@ def main():
             projects = PMDatabase.get_all_projects()
             print(f"   Found {len(projects)} projects")
 
-            if projects and not Config.DEFAULT_PROJECT_ID:
+            # Check mode and provide appropriate feedback
+            if _is_global_mode():
+                print("\n🌍 Running in GLOBAL MODE")
+                print("   Projects will be auto-detected from working directory")
+                print("   Navigate to a project directory to start working")
+                if not projects:
+                    print("   ℹ️ No projects initialized yet - they'll be created automatically")
+            elif projects and not Config.DEFAULT_PROJECT_ID:
                 # projects is now a list of models, not dicts
                 print(f"   Using first project as default: {projects[0].project_id}")
 
@@ -1617,11 +1819,16 @@ def main():
 
 # =============== Initialization Tools ===============
 
-@mcp.tool()
-def pm_init_project(project_path: str = ".", project_name: Optional[str] = None) -> Dict[str, Any]:
+@conditional_mcp_tool
+def pm_init_project(project_path: str = ".", project_name: Optional[str] = None, auto_mode: bool = False) -> Dict[str, Any]:
     """
     Initialize a new project for PM tracking. Scans directory structure,
     creates project metadata, and generates stable project ID.
+
+    Args:
+        project_path: Path to project directory (default: current directory)
+        project_name: Optional project name (defaults to directory name)
+        auto_mode: Whether this is an automatic initialization in global mode
     """
     try:
         with DatabaseSession():
@@ -1659,7 +1866,9 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
 
             metadata = {
                 "vcs": {"git_root": str(path), "default_branch": "main"},
-                "submodules": submodules
+                "submodules": submodules,
+                "auto_initialized": auto_mode,
+                "global_mode_compatible": True
             }
 
             # upsert-like behavior
@@ -1687,7 +1896,13 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
                 result_data['submodules_detected'] = len(submodules)
                 result_data['submodule_names'] = [s['name'] for s in submodules]
 
-            return ok("Project initialized with submodule detection", {"project": result_data})
+            # Add hints for global mode
+            hints = []
+            if _is_global_mode():
+                hints.append("Running in global mode - project auto-detected from working directory")
+                hints.append(f"To set as default: export PM_DEFAULT_PROJECT_ID={proj.project_id}")
+
+            return ok("Project initialized with submodule detection", {"project": result_data}, hints=hints)
     except Exception as e:
         tb = traceback.format_exc()
         return standard_response(
@@ -1698,7 +1913,7 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None)
         )
 
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_register_project(server_url: str = "http://127.0.0.1:1929",
                        project_id: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -1796,7 +2011,7 @@ def pm_register_project(server_url: str = "http://127.0.0.1:1929",
 
 # =============== Critical Missing Tools ===============
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_add_submodule(input: AddSubmoduleInput) -> Dict[str, Any]:
     """
@@ -1872,7 +2087,7 @@ def pm_add_submodule(input: AddSubmoduleInput) -> Dict[str, Any]:
             data={"error_details": {"error": str(e), "traceback": tb}}
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_remove_submodule(input: RemoveSubmoduleInput) -> Dict[str, Any]:
     """
@@ -1945,7 +2160,7 @@ def pm_remove_submodule(input: RemoveSubmoduleInput) -> Dict[str, Any]:
             data={"error_details": {"error": str(e), "traceback": tb}}
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 @strict_project_scope
 def pm_list_submodules(input: ListSubmodulesInput) -> Dict[str, Any]:
     """
@@ -2030,7 +2245,7 @@ def pm_list_submodules(input: ListSubmodulesInput) -> Dict[str, Any]:
             data={"error_details": {"error": str(e), "traceback": tb}}
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
     """Add effort and complexity estimates to an issue with detailed reasoning"""
     try:
@@ -2059,7 +2274,7 @@ def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify estimate format (e.g., '2-3 days', '1 week')"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
     """Create a task within an issue for work breakdown"""
     try:
@@ -2088,7 +2303,7 @@ def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify task doesn't already exist"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
     """Update task status, title, assignee, or details"""
     try:
@@ -2114,7 +2329,7 @@ def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
             hints=["Check task exists", "Verify status is valid (todo, doing, blocked, review, done)"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
     """Enhanced git status with issue context"""
     try:
@@ -2154,7 +2369,7 @@ def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
             hints=["Check if you're in a git repository", "Verify git is installed"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> Dict[str, Any]:
     """Push current branch to remote"""
     try:
@@ -2187,7 +2402,7 @@ def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> 
             hints=["Check remote exists", "Verify git credentials are configured"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
     """Get comprehensive project dashboard with metrics"""
     try:
@@ -2217,7 +2432,7 @@ def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify project exists"]
         )
 
-@mcp.tool()
+@conditional_mcp_tool
 def pm_reminder() -> Dict[str, Any]:
     """
     Get helpful reminders about using the PM system properly.

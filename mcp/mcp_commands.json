@@ -1,0 +1,164 @@
+{
+  "commands": {
+    "pm_docs": {
+      "category": "required",
+      "enabled": true,
+      "description": "Get comprehensive PM system documentation"
+    },
+    "pm_workflow": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "Get methodology and best practices for PM-driven development"
+    },
+    "pm_status": {
+      "category": "required",
+      "enabled": true,
+      "description": "Get comprehensive project status including metrics"
+    },
+    "pm_list_issues": {
+      "category": "required",
+      "enabled": true,
+      "description": "List and filter project issues"
+    },
+    "pm_get_issue": {
+      "category": "required",
+      "enabled": true,
+      "description": "Get comprehensive issue details"
+    },
+    "pm_search_issues": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "Full-text search across all issue content"
+    },
+    "pm_list_archived_issues": {
+      "category": "optional",
+      "enabled": true,
+      "description": "List archived/completed issues with filtering"
+    },
+    "pm_get_archived_issue": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Retrieve comprehensive details of an archived issue"
+    },
+    "pm_list_projects": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "List all available projects in the system"
+    },
+    "pm_create_issue": {
+      "category": "required",
+      "enabled": true,
+      "description": "Create a comprehensive issue with rich documentation"
+    },
+    "pm_start_work": {
+      "category": "required",
+      "enabled": true,
+      "description": "Start work on an issue - updates status and creates branch"
+    },
+    "pm_log_work": {
+      "category": "required",
+      "enabled": true,
+      "description": "Log development activity with artifacts and context"
+    },
+    "pm_update_status": {
+      "category": "required",
+      "enabled": true,
+      "description": "Update issue status with workflow validation"
+    },
+    "pm_delete_issue": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Delete an issue with all associated data"
+    },
+    "pm_create_branch": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "Create a git branch for an issue"
+    },
+    "pm_commit": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "Create a git commit with PM trailers"
+    },
+    "pm_my_queue": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "Get personalized work queue with intelligent prioritization"
+    },
+    "pm_blocked_issues": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Find and analyze blocked issues"
+    },
+    "pm_daily_standup": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Generate daily standup report"
+    },
+    "pm_init_project": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Initialize a new project for PM tracking"
+    },
+    "pm_register_project": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Register project with Jira-lite web UI server"
+    },
+    "pm_add_submodule": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Add a new submodule to an existing project"
+    },
+    "pm_remove_submodule": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Remove a submodule from a project"
+    },
+    "pm_list_submodules": {
+      "category": "optional",
+      "enabled": true,
+      "description": "List all submodules in a project"
+    },
+    "pm_estimate": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Add effort and complexity estimates to an issue"
+    },
+    "pm_create_task": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "Create a task within an issue for work breakdown"
+    },
+    "pm_update_task": {
+      "category": "recommended",
+      "enabled": true,
+      "description": "Update task status, title, assignee, or details"
+    },
+    "pm_git_status": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Enhanced git status with issue context"
+    },
+    "pm_push_branch": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Push current branch to remote"
+    },
+    "pm_project_dashboard": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Get comprehensive project dashboard with metrics"
+    },
+    "pm_reminder": {
+      "category": "optional",
+      "enabled": true,
+      "description": "Get helpful reminders about using the PM system"
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-10-05",
+    "description": "MCP command configuration for PM server. Categorizes commands into required (essential), recommended (very useful), and optional (nice-to-have) tiers."
+  }
+}

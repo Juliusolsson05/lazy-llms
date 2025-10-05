@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}MCP Command Analytics - Jira-lite PM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">📊 MCP Command Analytics</h1>
+        <p class="text-gray-600 dark:text-gray-400">Track and optimize your MCP command usage (Last 30 days)</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Commands</div>
+            <div class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ total_commands }}</div>
+        </div>
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Commands Used</div>
+            <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ used_count }}</div>
+        </div>
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Commands Unused</div>
+            <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{ unused_count }}</div>
+        </div>
+        <div class="bg-white dark:bg-dark-surface rounded-lg shadow p-6 border border-gray-200 dark:border-dark-border">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Usage Rate</div>
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ ((used_count / total_commands * 100) | round | int) }}%</div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="bg-white dark:bg-dark-surface rounded-lg shadow mb-8 border border-gray-200 dark:border-dark-border">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Category Breakdown</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for category in ['required', 'recommended', 'optional'] %}
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">{{ category }}</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">
+                            {{ category_stats[category]['used'] }} / {{ category_stats[category]['total'] }} used
+                            ({{ ((category_stats[category]['used'] / category_stats[category]['total'] * 100) | round | int) if category_stats[category]['total'] > 0 else 0 }}%)
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div class="
+                            {% if category == 'required' %}bg-red-600 dark:bg-red-400{% endif %}
+                            {% if category == 'recommended' %}bg-blue-600 dark:bg-blue-400{% endif %}
+                            {% if category == 'optional' %}bg-green-600 dark:bg-green-400{% endif %}
+                            h-2 rounded-full transition-all duration-300"
+                             style="width: {{ ((category_stats[category]['used'] / category_stats[category]['total'] * 100) | round | int) if category_stats[category]['total'] > 0 else 0 }}%">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Used Commands -->
+    {% if usage_stats %}
+    <div class="bg-white dark:bg-dark-surface rounded-lg shadow mb-8 border border-gray-200 dark:border-dark-border">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Top Used Commands</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+                <thead class="bg-gray-50 dark:bg-dark-hover">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rank</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Command</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Count</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Used</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
+                    {% for stat in usage_stats[:15] %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-dark-hover">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ loop.index }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <code class="text-sm font-mono text-blue-600 dark:text-blue-400">{{ stat.command_name }}</code>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% set category = all_commands[stat.command_name]['category'] %}
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if category == 'required' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200{% endif %}
+                                {% if category == 'recommended' %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}
+                                {% if category == 'optional' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% endif %}">
+                                {{ category }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-semibold">{{ stat.count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {% if stat.last_used %}
+                                {{ stat.last_used[:10] }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-8">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div>
+                <h3 class="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">No Usage Data Found</h3>
+                <p class="text-yellow-700 dark:text-yellow-300">
+                    Commands haven't been used yet or logging just started. Use the PM system normally, then check back here to see usage patterns.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Command Management -->
+    <div class="bg-white dark:bg-dark-surface rounded-lg shadow mb-8 border border-gray-200 dark:border-dark-border">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100" id="command-section-title">Unused Commands ({{ unused_count }})</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1" id="command-section-desc">Commands that haven't been used in the last 30 days - click to disable</p>
+                </div>
+                <button onclick="toggleView()" id="view-toggle-btn"
+                        class="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+                    Show All Commands
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            {% set used_command_names = usage_stats | map(attribute='command_name') | list %}
+            {% set unused = [] %}
+            {% for cmd_name, cmd_info in all_commands.items() %}
+                {% if cmd_name not in used_command_names %}
+                    {% set _ = unused.append((cmd_name, cmd_info)) %}
+                {% endif %}
+            {% endfor %}
+
+            <!-- Unused Commands View -->
+            <div id="unused-commands-view">
+                {% if unused %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for cmd_name, cmd_info in unused | sort %}
+                    <div class="border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:shadow-md transition-all">
+                        <div class="flex items-start justify-between mb-2">
+                            <code class="text-sm font-mono text-gray-700 dark:text-gray-300 break-all">{{ cmd_name }}</code>
+                            <span class="px-2 py-1 text-xs rounded-full ml-2 flex-shrink-0
+                                {% if cmd_info.category == 'required' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200{% endif %}
+                                {% if cmd_info.category == 'recommended' %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}
+                                {% if cmd_info.category == 'optional' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% endif %}">
+                                {{ cmd_info.category }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">{{ cmd_info.description }}</p>
+                        {% if cmd_info.category in ['optional', 'recommended'] %}
+                        <button onclick="toggleCommand('{{ cmd_name }}', false)"
+                                class="w-full px-3 py-1.5 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors font-medium">
+                            🔇 Disable Command
+                        </button>
+                        {% else %}
+                        <div class="text-xs text-gray-500 dark:text-gray-400 italic text-center">⚠️ Required - cannot disable</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-600 dark:text-gray-400">✅ All commands have been used!</p>
+                {% endif %}
+            </div>
+
+            <!-- All Commands View -->
+            <div id="all-commands-view" style="display: none;">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for cmd_name, cmd_info in all_commands.items() | sort %}
+                    {% set is_used = cmd_name in used_command_names %}
+                    <div class="border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:shadow-md transition-all
+                        {% if is_used %}bg-green-50 dark:bg-green-900/20{% endif %}">
+                        <div class="flex items-start justify-between mb-2">
+                            <code class="text-sm font-mono text-gray-700 dark:text-gray-300 break-all">{{ cmd_name }}</code>
+                            <div class="flex flex-col items-end space-y-1">
+                                <span class="px-2 py-1 text-xs rounded-full flex-shrink-0
+                                    {% if cmd_info.category == 'required' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200{% endif %}
+                                    {% if cmd_info.category == 'recommended' %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}
+                                    {% if cmd_info.category == 'optional' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% endif %}">
+                                    {{ cmd_info.category }}
+                                </span>
+                                {% if is_used %}
+                                <span class="px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full">
+                                    ✓ Used
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">{{ cmd_info.description }}</p>
+                        {% if cmd_info.category in ['optional', 'recommended'] %}
+                        {% if cmd_info.enabled %}
+                        <button onclick="toggleCommand('{{ cmd_name }}', false)"
+                                class="w-full px-3 py-1.5 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors font-medium">
+                            🔇 Disable Command
+                        </button>
+                        {% else %}
+                        <button onclick="toggleCommand('{{ cmd_name }}', true)"
+                                class="w-full px-3 py-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors font-medium">
+                            🔊 Enable Command
+                        </button>
+                        {% endif %}
+                        {% else %}
+                        <div class="text-xs text-gray-500 dark:text-gray-400 italic text-center">⚠️ Required - cannot disable</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimization Tips -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">💡 Optimization Tips</h3>
+                <ul class="text-blue-700 dark:text-blue-300 space-y-2">
+                    <li>• <strong>Click "Disable Command"</strong> buttons above to optimize your setup</li>
+                    <li>• <strong>Run `make optimize`</strong> in your terminal for CLI recommendations</li>
+                    <li>• Unused optional commands are safe to disable</li>
+                    <li>• Required commands cannot be disabled (essential for PM functionality)</li>
+                    <li>• After disabling commands, restart Claude Desktop to apply changes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load view preference from localStorage
+let showingAllCommands = localStorage.getItem('pm-analytics-view') === 'all';
+
+function toggleView() {
+    const unusedView = document.getElementById('unused-commands-view');
+    const allView = document.getElementById('all-commands-view');
+    const toggleBtn = document.getElementById('view-toggle-btn');
+    const title = document.getElementById('command-section-title');
+    const desc = document.getElementById('command-section-desc');
+
+    showingAllCommands = !showingAllCommands;
+
+    // Save preference to localStorage
+    localStorage.setItem('pm-analytics-view', showingAllCommands ? 'all' : 'unused');
+
+    if (showingAllCommands) {
+        unusedView.style.display = 'none';
+        allView.style.display = 'block';
+        toggleBtn.textContent = 'Show Unused Only';
+        title.textContent = 'All Commands ({{ total_commands }})';
+        desc.textContent = 'All available MCP commands - manage which ones are enabled';
+    } else {
+        unusedView.style.display = 'block';
+        allView.style.display = 'none';
+        toggleBtn.textContent = 'Show All Commands';
+        title.textContent = 'Unused Commands ({{ unused_count }})';
+        desc.textContent = 'Commands that haven\'t been used in the last 30 days - click to disable';
+    }
+}
+
+// Initialize view on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (showingAllCommands) {
+        toggleView(); // This will set it to the stored preference
+    }
+});
+
+function showReconnectModal(message, commandName, enabled) {
+    // Create modal HTML
+    const modalHtml = `
+        <div id="reconnect-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white dark:bg-dark-surface rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div class="p-6">
+                    <div class="flex items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
+                            <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                            ✅ ${message}
+                        </h3>
+                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                            <p class="mb-2"><strong>Next Step:</strong> Restart your MCP server to apply changes</p>
+                            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-left">
+                                <p class="text-xs font-mono">
+                                    1. Restart Claude Desktop<br/>
+                                    2. Reconnect to your project<br/>
+                                    3. Changes will be active
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="closeReconnectModal()"
+                                class="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                            Got It
+                        </button>
+                        <button onclick="closeReconnectModal(); location.reload();"
+                                class="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+                            Refresh Page
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeReconnectModal() {
+    const modal = document.getElementById('reconnect-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function toggleCommand(commandName, enabled) {
+    const action = enabled ? 'enable' : 'disable';
+    if (!enabled && !confirm(`Disable ${commandName}? This will prevent the command from being used until you restart Claude Desktop.`)) {
+        return;
+    }
+
+    // Show loading state
+    const buttons = document.querySelectorAll(`button[onclick*="${commandName}"]`);
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.textContent = enabled ? 'Enabling...' : 'Disabling...';
+    });
+
+    fetch('/api/commands/toggle', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            command_name: commandName,
+            enabled: enabled
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            // Reset buttons on error
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = enabled ? '🔊 Enable Command' : '🔇 Disable Command';
+            });
+        } else {
+            showReconnectModal(data.message, commandName, enabled);
+        }
+    })
+    .catch(error => {
+        alert('Error toggling command: ' + error);
+        // Reset buttons on error
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.textContent = enabled ? '🔊 Enable Command' : '🔇 Disable Command';
+        });
+    });
+}
+</script>
+{% endblock %}
