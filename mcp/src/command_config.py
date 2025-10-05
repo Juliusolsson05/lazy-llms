@@ -43,7 +43,6 @@ OPTIONAL_COMMANDS = {
 }
 
 DISABLED_COMMANDS = {
-    "pm_commit",
     "pm_create_branch",
     "pm_daily_standup",
     "pm_delete_issue",
