@@ -43,6 +43,9 @@ OPTIONAL_COMMANDS = {
 }
 
 DISABLED_COMMANDS = {
+    "pm_delete_issue",
+    "pm_get_archived_issue",
+    "pm_push_branch",
     "pm_remove_submodule",
 }
 
