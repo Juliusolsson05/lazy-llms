@@ -1,7 +1,10 @@
-"""MCP Command Configuration
-Categorizes all MCP commands into required/recommended/optional tiers.
+"""MCP Command Configuration - Database-backed version
+Maintains backward compatibility while reading from database
 """
+from typing import Dict, Optional, Set
+from datetime import datetime
 
+# Static definitions for documentation/reference
 REQUIRED_COMMANDS = {
     "pm_docs": "Get comprehensive PM system documentation",
     "pm_status": "Get comprehensive project status including metrics",
@@ -42,20 +45,46 @@ OPTIONAL_COMMANDS = {
     "pm_reminder": "Get helpful reminders about using the PM system",
 }
 
-DISABLED_COMMANDS = {
-    "pm_create_branch",
-    "pm_daily_standup",
-    "pm_delete_issue",
-    "pm_get_archived_issue",
-    "pm_git_status",
-    "pm_project_dashboard",
-    "pm_push_branch",
-    "pm_remove_submodule",
-}
+# Runtime configuration loaded from database
+_DISABLED_COMMANDS_CACHE: Optional[Set[str]] = None
+_CACHE_LOADED_AT: Optional[datetime] = None
+
+def _load_disabled_commands() -> Set[str]:
+    """Load disabled commands from database"""
+    global _DISABLED_COMMANDS_CACHE, _CACHE_LOADED_AT
+
+    try:
+        from database import CommandConfig, DatabaseSession
+
+        with DatabaseSession():
+            disabled = CommandConfig.select().where(CommandConfig.enabled == False)
+            _DISABLED_COMMANDS_CACHE = {config.command_name for config in disabled}
+            _CACHE_LOADED_AT = datetime.utcnow()
+            return _DISABLED_COMMANDS_CACHE
+    except Exception as e:
+        print(f"⚠️  Failed to load command config from database: {e}")
+        # Fallback to empty set if database not available
+        _DISABLED_COMMANDS_CACHE = set()
+        return _DISABLED_COMMANDS_CACHE
+
+def get_disabled_commands() -> Set[str]:
+    """Get currently disabled commands (cached)"""
+    global _DISABLED_COMMANDS_CACHE
+
+    # Load on first access
+    if _DISABLED_COMMANDS_CACHE is None:
+        return _load_disabled_commands()
+
+    return _DISABLED_COMMANDS_CACHE
 
 def is_command_enabled(command_name: str) -> bool:
     """Check if a command is enabled"""
-    return command_name not in DISABLED_COMMANDS
+    disabled = get_disabled_commands()
+    return command_name not in disabled
+
+def refresh_cache():
+    """Refresh the disabled commands cache from database"""
+    return _load_disabled_commands()
 
 def get_command_category(command_name: str) -> str:
     """Get the category of a command"""
@@ -74,37 +103,100 @@ def get_command_description(command_name: str) -> str:
             return commands[command_name]
     return ""
 
-def get_all_commands():
-    """Get all commands with their metadata"""
-    all_commands = {}
+def get_all_commands() -> Dict:
+    """Get all commands with their metadata from database"""
+    try:
+        from database import CommandConfig, DatabaseSession
 
-    for cmd, desc in REQUIRED_COMMANDS.items():
-        all_commands[cmd] = {
-            "category": "required",
-            "description": desc,
-            "enabled": cmd not in DISABLED_COMMANDS
-        }
+        with DatabaseSession():
+            configs = CommandConfig.select()
+            return {
+                config.command_name: {
+                    "category": config.category,
+                    "description": config.description,
+                    "enabled": config.enabled,
+                    "can_disable": config.can_disable
+                }
+                for config in configs
+            }
+    except Exception:
+        # Fallback to static definitions
+        all_commands = {}
+        disabled = get_disabled_commands()
 
-    for cmd, desc in RECOMMENDED_COMMANDS.items():
-        all_commands[cmd] = {
-            "category": "recommended",
-            "description": desc,
-            "enabled": cmd not in DISABLED_COMMANDS
-        }
+        for cmd, desc in REQUIRED_COMMANDS.items():
+            all_commands[cmd] = {
+                "category": "required",
+                "description": desc,
+                "enabled": cmd not in disabled,
+                "can_disable": False
+            }
 
-    for cmd, desc in OPTIONAL_COMMANDS.items():
-        all_commands[cmd] = {
-            "category": "optional",
-            "description": desc,
-            "enabled": cmd not in DISABLED_COMMANDS
-        }
+        for cmd, desc in RECOMMENDED_COMMANDS.items():
+            all_commands[cmd] = {
+                "category": "recommended",
+                "description": desc,
+                "enabled": cmd not in disabled,
+                "can_disable": True
+            }
 
-    return all_commands
+        for cmd, desc in OPTIONAL_COMMANDS.items():
+            all_commands[cmd] = {
+                "category": "optional",
+                "description": desc,
+                "enabled": cmd not in disabled,
+                "can_disable": True
+            }
 
-def disable_command(command_name: str):
-    """Disable a command"""
-    DISABLED_COMMANDS.add(command_name)
+        return all_commands
 
-def enable_command(command_name: str):
-    """Enable a command"""
-    DISABLED_COMMANDS.discard(command_name)
+def disable_command(command_name: str, disabled_by: str = "system") -> bool:
+    """Disable a command in database"""
+    try:
+        from database import CommandConfig, DatabaseSession
+
+        with DatabaseSession():
+            config = CommandConfig.get(CommandConfig.command_name == command_name)
+
+            if not config.can_disable:
+                raise ValueError(f"Command '{command_name}' cannot be disabled (required)")
+
+            config.enabled = False
+            config.disabled_at = datetime.utcnow()
+            config.disabled_by = disabled_by
+            config.updated_utc = datetime.utcnow()
+            config.save()
+
+            # Refresh cache
+            refresh_cache()
+            return True
+    except Exception as e:
+        print(f"Failed to disable command: {e}")
+        return False
+
+def enable_command(command_name: str) -> bool:
+    """Enable a command in database"""
+    try:
+        from database import CommandConfig, DatabaseSession
+
+        with DatabaseSession():
+            config = CommandConfig.get(CommandConfig.command_name == command_name)
+            config.enabled = True
+            config.disabled_at = None
+            config.disabled_by = None
+            config.updated_utc = datetime.utcnow()
+            config.save()
+
+            # Refresh cache
+            refresh_cache()
+            return True
+    except Exception as e:
+        print(f"Failed to enable command: {e}")
+        return False
+
+# Backward compatibility property for DISABLED_COMMANDS
+def get_disabled_commands_legacy():
+    return get_disabled_commands()
+
+# For any legacy code that imports DISABLED_COMMANDS directly
+DISABLED_COMMANDS = get_disabled_commands()

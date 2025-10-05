@@ -204,7 +204,7 @@ def create_app(config_class=Config):
 
         with DatabaseSession():
             usage_stats = PMDatabase.get_command_usage_stats(days=30)
-            all_commands = get_all_commands()
+            all_commands = get_all_commands()  # Now reads from database
 
             # Filter out any test commands that aren't in our config
             usage_stats = [s for s in usage_stats if s['command_name'] in all_commands]

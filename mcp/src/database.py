@@ -210,6 +210,21 @@ class CommandUsage(BaseModel):
     timestamp_utc = DateTimeField(index=True)
     project_id = CharField(null=True, index=True, max_length=64)
 
+class CommandConfig(BaseModel):
+    """Command configuration for MCP tools"""
+    command_name = CharField(primary_key=True, max_length=100)
+    category = CharField(max_length=20)  # required/recommended/optional
+    description = TextField()
+    enabled = BooleanField(default=True)
+    can_disable = BooleanField(default=True)  # False for critical commands
+    disabled_at = DateTimeField(null=True)
+    disabled_by = CharField(null=True, max_length=100)
+    created_utc = DateTimeField(default=datetime.utcnow)
+    updated_utc = DateTimeField(default=datetime.utcnow)
+
+    class Meta:
+        table_name = 'command_configs'
+
 class PMDatabase:
     """Database operations wrapper with proper Peewee usage - NO RAW SQL"""
 
@@ -299,7 +314,7 @@ class PMDatabase:
         db_proxy.initialize(database)
 
         # Create tables if needed
-        database.create_tables([Project, Issue, Task, WorkLog, CommandUsage], safe=True)
+        database.create_tables([Project, Issue, Task, WorkLog, CommandUsage, CommandConfig], safe=True)
         cls._db_initialized = True
 
     @classmethod
