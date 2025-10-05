@@ -41,8 +41,10 @@ from command_config import is_command_enabled as _is_command_enabled
 
 def log_command_usage_decorator(func):
     """Decorator to log MCP command usage for analytics and enforce command filtering"""
+    import functools
     command_name = func.__name__
 
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not _is_command_enabled(command_name):
             return err(
@@ -63,8 +65,6 @@ def log_command_usage_decorator(func):
 
         return func(*args, **kwargs)
 
-    wrapper.__name__ = func.__name__
-    wrapper.__doc__ = func.__doc__
     return wrapper
 
 # =============== Helper Functions ===============

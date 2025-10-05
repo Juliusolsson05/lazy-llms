@@ -321,48 +321,53 @@ def create_api_blueprint():
             if not command_name:
                 return jsonify({'error': 'command_name required'}), 400
 
-            # Read command_config.py
-            config_path = Path(__file__).parent.parent.parent.parent / 'mcp' / 'src' / 'command_config.py'
+            # Import the config module directly and modify it
+            import sys
+            config_path = Path(__file__).parent.parent.parent.parent / 'mcp' / 'src'
+            sys.path.insert(0, str(config_path))
 
-            with open(config_path, 'r') as f:
-                content = f.read()
+            from command_config import DISABLED_COMMANDS, enable_command, disable_command
 
-            # Modify DISABLED_COMMANDS set
+            # Use the built-in functions
             if enabled:
-                # Remove from disabled set
-                content = content.replace(f'    "{command_name}",\n', '')
-                content = content.replace(f'"{command_name}"', '')
+                enable_command(command_name)
             else:
-                # Add to disabled set
-                if 'DISABLED_COMMANDS = set()' in content:
-                    content = content.replace(
-                        'DISABLED_COMMANDS = set()',
-                        f'DISABLED_COMMANDS = {{\n    "{command_name}",\n}}'
-                    )
-                elif f'"{command_name}"' not in content or 'DISABLED_COMMANDS' not in content:
-                    # Find the DISABLED_COMMANDS set and add to it
-                    import re
-                    match = re.search(r'(DISABLED_COMMANDS = \{)([^}]*)(\})', content)
-                    if match:
-                        current_items = match.group(2)
-                        if current_items.strip():
-                            new_set = f'{match.group(1)}{current_items}    "{command_name}",\n{match.group(3)}'
-                        else:
-                            new_set = f'{match.group(1)}\n    "{command_name}",\n{match.group(3)}'
-                        content = content[:match.start()] + new_set + content[match.end():]
+                disable_command(command_name)
 
-            # Write back
-            with open(config_path, 'w') as f:
-                f.write(content)
+            # Now rewrite the file with the updated DISABLED_COMMANDS set
+            config_file = config_path / 'command_config.py'
+
+            with open(config_file, 'r') as f:
+                lines = f.readlines()
+
+            # Find and replace the DISABLED_COMMANDS line
+            new_lines = []
+            for line in lines:
+                if line.strip().startswith('DISABLED_COMMANDS = '):
+                    if DISABLED_COMMANDS:
+                        disabled_list = ',\n    '.join(f'"{cmd}"' for cmd in sorted(DISABLED_COMMANDS))
+                        new_lines.append(f'DISABLED_COMMANDS = {{\n    {disabled_list},\n}}\n')
+                    else:
+                        new_lines.append('DISABLED_COMMANDS = set()\n')
+                else:
+                    new_lines.append(line)
+
+            with open(config_file, 'w') as f:
+                f.writelines(new_lines)
 
             return jsonify({
                 'message': f'Command {command_name} {"enabled" if enabled else "disabled"}',
                 'command_name': command_name,
                 'enabled': enabled,
-                'restart_required': True
+                'restart_required': True,
+                'disabled_count': len(DISABLED_COMMANDS)
             })
 
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            import traceback
+            return jsonify({
+                'error': str(e),
+                'traceback': traceback.format_exc()
+            }), 500
 
     return api_bp

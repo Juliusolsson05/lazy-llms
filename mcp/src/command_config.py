@@ -42,7 +42,9 @@ OPTIONAL_COMMANDS = {
     "pm_reminder": "Get helpful reminders about using the PM system",
 }
 
-DISABLED_COMMANDS = set()
+DISABLED_COMMANDS = {
+    "pm_remove_submodule",
+}
 
 def is_command_enabled(command_name: str) -> bool:
     """Check if a command is enabled"""
