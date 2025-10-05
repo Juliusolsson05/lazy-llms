@@ -250,6 +250,7 @@ def pm_workflow(input: PMWorkflowInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_status(input: PMStatusInput) -> Dict[str, Any]:
     """
@@ -321,6 +322,7 @@ def pm_status(input: PMStatusInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
     """
@@ -362,6 +364,7 @@ def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
     """
@@ -549,6 +552,7 @@ def pm_list_projects() -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_list_archived_issues(input: ListArchivedIssuesInput) -> Dict[str, Any]:
     """
@@ -608,6 +612,7 @@ def pm_list_archived_issues(input: ListArchivedIssuesInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_get_archived_issue(input: GetArchivedIssueInput) -> Dict[str, Any]:
     """
@@ -682,6 +687,7 @@ def pm_get_archived_issue(input: GetArchivedIssueInput) -> Dict[str, Any]:
 # =============== Planning Tools ===============
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
     """
@@ -711,6 +717,7 @@ def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
     """
@@ -821,6 +828,7 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
     """
@@ -889,6 +897,7 @@ def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_update_status(input: UpdateStatusInput) -> Dict[str, Any]:
     """
@@ -998,6 +1007,7 @@ def pm_update_status(input: UpdateStatusInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_delete_issue(input: DeleteIssueInput) -> Dict[str, Any]:
     """
@@ -1095,6 +1105,7 @@ def pm_delete_issue(input: DeleteIssueInput) -> Dict[str, Any]:
 # =============== Git Integration Tools ===============
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
     """
@@ -1381,6 +1392,7 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
 # =============== Analytics Tools ===============
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_my_queue(input: MyQueueInput) -> Dict[str, Any]:
     """
@@ -1577,6 +1589,7 @@ def pm_blocked_issues(input: BlockedIssuesInput) -> Dict[str, Any]:
 # =============== Workflow Tools ===============
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_daily_standup(input: DailyStandupInput) -> Dict[str, Any]:
     """
@@ -1993,6 +2006,7 @@ def pm_register_project(server_url: str = "http://127.0.0.1:1929",
 # =============== Critical Missing Tools ===============
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_add_submodule(input: AddSubmoduleInput) -> Dict[str, Any]:
     """
@@ -2069,6 +2083,7 @@ def pm_add_submodule(input: AddSubmoduleInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_remove_submodule(input: RemoveSubmoduleInput) -> Dict[str, Any]:
     """
@@ -2142,6 +2157,7 @@ def pm_remove_submodule(input: RemoveSubmoduleInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 @strict_project_scope
 def pm_list_submodules(input: ListSubmodulesInput) -> Dict[str, Any]:
     """

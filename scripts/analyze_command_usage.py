@@ -74,7 +74,7 @@ def analyze_usage(days=30):
                     print(f"   - {cmd}")
 
             print(f"\n\n📝 To disable unused commands:")
-            print(f"   Edit mcp/mcp_commands.json and set 'enabled': false for commands you don't need.")
+            print(f"   Edit mcp/src/command_config.py and add commands to DISABLED_COMMANDS set.")
 
         else:
             print(f"\n\n✅ All configured commands have been used!")

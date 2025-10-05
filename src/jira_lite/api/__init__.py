@@ -310,4 +310,59 @@ def create_api_blueprint():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+    @api_bp.route('/commands/toggle', methods=['POST'])
+    def toggle_command():
+        """Enable or disable an MCP command"""
+        try:
+            data = request.get_json()
+            command_name = data.get('command_name')
+            enabled = data.get('enabled', True)
+
+            if not command_name:
+                return jsonify({'error': 'command_name required'}), 400
+
+            # Read command_config.py
+            config_path = Path(__file__).parent.parent.parent.parent / 'mcp' / 'src' / 'command_config.py'
+
+            with open(config_path, 'r') as f:
+                content = f.read()
+
+            # Modify DISABLED_COMMANDS set
+            if enabled:
+                # Remove from disabled set
+                content = content.replace(f'    "{command_name}",\n', '')
+                content = content.replace(f'"{command_name}"', '')
+            else:
+                # Add to disabled set
+                if 'DISABLED_COMMANDS = set()' in content:
+                    content = content.replace(
+                        'DISABLED_COMMANDS = set()',
+                        f'DISABLED_COMMANDS = {{\n    "{command_name}",\n}}'
+                    )
+                elif f'"{command_name}"' not in content or 'DISABLED_COMMANDS' not in content:
+                    # Find the DISABLED_COMMANDS set and add to it
+                    import re
+                    match = re.search(r'(DISABLED_COMMANDS = \{)([^}]*)(\})', content)
+                    if match:
+                        current_items = match.group(2)
+                        if current_items.strip():
+                            new_set = f'{match.group(1)}{current_items}    "{command_name}",\n{match.group(3)}'
+                        else:
+                            new_set = f'{match.group(1)}\n    "{command_name}",\n{match.group(3)}'
+                        content = content[:match.start()] + new_set + content[match.end():]
+
+            # Write back
+            with open(config_path, 'w') as f:
+                f.write(content)
+
+            return jsonify({
+                'message': f'Command {command_name} {"enabled" if enabled else "disabled"}',
+                'command_name': command_name,
+                'enabled': enabled,
+                'restart_required': True
+            })
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     return api_bp

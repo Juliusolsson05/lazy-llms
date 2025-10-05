@@ -123,6 +123,52 @@
     </div>
     {% endif %}
 
+    <!-- Unused Commands -->
+    <div class="bg-white dark:bg-dark-surface rounded-lg shadow mb-8 border border-gray-200 dark:border-dark-border">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Unused Commands ({{ unused_count }})</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Commands that haven't been used in the last 30 days - click to disable</p>
+        </div>
+        <div class="p-6">
+            {% set used_command_names = usage_stats | map(attribute='command_name') | list %}
+            {% set unused = [] %}
+            {% for cmd_name, cmd_info in all_commands.items() %}
+                {% if cmd_name not in used_command_names %}
+                    {% set _ = unused.append((cmd_name, cmd_info)) %}
+                {% endif %}
+            {% endfor %}
+
+            {% if unused %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for cmd_name, cmd_info in unused | sort %}
+                <div class="border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:shadow-md transition-all">
+                    <div class="flex items-start justify-between mb-2">
+                        <code class="text-sm font-mono text-gray-700 dark:text-gray-300 break-all">{{ cmd_name }}</code>
+                        <span class="px-2 py-1 text-xs rounded-full ml-2 flex-shrink-0
+                            {% if cmd_info.category == 'required' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200{% endif %}
+                            {% if cmd_info.category == 'recommended' %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}
+                            {% if cmd_info.category == 'optional' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% endif %}">
+                            {{ cmd_info.category }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">{{ cmd_info.description }}</p>
+                    {% if cmd_info.category in ['optional', 'recommended'] %}
+                    <button onclick="toggleCommand('{{ cmd_name }}', false)"
+                            class="w-full px-3 py-1.5 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors font-medium">
+                        🔇 Disable Command
+                    </button>
+                    {% else %}
+                    <div class="text-xs text-gray-500 dark:text-gray-400 italic text-center">⚠️ Required - cannot disable</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-600 dark:text-gray-400">✅ All commands have been used!</p>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- Optimization Tips -->
     <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
         <div class="flex items-start">
@@ -132,14 +178,45 @@
             <div>
                 <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">💡 Optimization Tips</h3>
                 <ul class="text-blue-700 dark:text-blue-300 space-y-2">
-                    <li>• <strong>Run `make optimize`</strong> in your terminal to get detailed recommendations</li>
-                    <li>• Commands can be disabled by editing <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">mcp/src/command_config.py</code></li>
+                    <li>• <strong>Click "Disable Command"</strong> buttons above to optimize your setup</li>
+                    <li>• <strong>Run `make optimize`</strong> in your terminal for CLI recommendations</li>
                     <li>• Unused optional commands are safe to disable</li>
-                    <li>• Required commands should never be disabled</li>
-                    <li>• After 1-2 weeks of usage, review and optimize your configuration</li>
+                    <li>• Required commands cannot be disabled (essential for PM functionality)</li>
+                    <li>• After disabling commands, restart Claude Desktop to apply changes</li>
                 </ul>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function toggleCommand(commandName, enabled) {
+    if (!enabled && !confirm(`Disable ${commandName}? This will prevent the command from being used. You'll need to restart the MCP server (restart Claude Desktop) for changes to take effect.`)) {
+        return;
+    }
+
+    fetch('/api/commands/toggle', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            command_name: commandName,
+            enabled: enabled
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(data.message + '\n\n⚠️  Restart required: Restart Claude Desktop to apply changes.');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Error toggling command: ' + error);
+    });
+}
+</script>
 {% endblock %}
