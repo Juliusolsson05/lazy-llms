@@ -63,7 +63,7 @@ def conditional_mcp_tool(func):
         return mcp.tool()(wrapper)
     else:
         # Return unwrapped function (not registered with MCP)
-        print(f"⚠️  Skipping registration of disabled command: {command_name}")
+        # Command disabled - not registering with MCP
         return wrapper
 
 def log_command_usage_decorator(func):

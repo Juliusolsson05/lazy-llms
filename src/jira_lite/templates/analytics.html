@@ -245,7 +245,8 @@
 </div>
 
 <script>
-let showingAllCommands = false;
+// Load view preference from localStorage
+let showingAllCommands = localStorage.getItem('pm-analytics-view') === 'all';
 
 function toggleView() {
     const unusedView = document.getElementById('unused-commands-view');
@@ -255,6 +256,9 @@ function toggleView() {
     const desc = document.getElementById('command-section-desc');
 
     showingAllCommands = !showingAllCommands;
+
+    // Save preference to localStorage
+    localStorage.setItem('pm-analytics-view', showingAllCommands ? 'all' : 'unused');
 
     if (showingAllCommands) {
         unusedView.style.display = 'none';
@@ -271,9 +275,70 @@ function toggleView() {
     }
 }
 
+// Initialize view on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (showingAllCommands) {
+        toggleView(); // This will set it to the stored preference
+    }
+});
+
+function showReconnectModal(message, commandName, enabled) {
+    // Create modal HTML
+    const modalHtml = `
+        <div id="reconnect-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white dark:bg-dark-surface rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div class="p-6">
+                    <div class="flex items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
+                            <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                            ✅ ${message}
+                        </h3>
+                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                            <p class="mb-2"><strong>Next Step:</strong> Restart your MCP server to apply changes</p>
+                            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-left">
+                                <p class="text-xs font-mono">
+                                    1. Restart Claude Desktop<br/>
+                                    2. Reconnect to your project<br/>
+                                    3. Changes will be active
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="closeReconnectModal()"
+                                class="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                            Got It
+                        </button>
+                        <button onclick="closeReconnectModal(); location.reload();"
+                                class="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+                            Refresh Page
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeReconnectModal() {
+    const modal = document.getElementById('reconnect-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
 function toggleCommand(commandName, enabled) {
     const action = enabled ? 'enable' : 'disable';
-    if (!enabled && !confirm(`Disable ${commandName}? This will prevent the command from being used. You'll need to restart the MCP server (restart Claude Desktop) for changes to take effect.`)) {
+    if (!enabled && !confirm(`Disable ${commandName}? This will prevent the command from being used until you restart Claude Desktop.`)) {
         return;
     }
 
@@ -298,9 +363,13 @@ function toggleCommand(commandName, enabled) {
     .then(data => {
         if (data.error) {
             alert('Error: ' + data.error);
+            // Reset buttons on error
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = enabled ? '🔊 Enable Command' : '🔇 Disable Command';
+            });
         } else {
-            alert(data.message + '\n\n⚠️  Restart required: Restart Claude Desktop to apply changes.');
-            location.reload();
+            showReconnectModal(data.message, commandName, enabled);
         }
     })
     .catch(error => {
