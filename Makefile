@@ -215,3 +215,10 @@ demo-full: install-complete ## Demo: Complete system with web UI and MCP server
 	@echo "   3. Test MCP tools with 'make mcp-run-http'"
 	@echo ""
 	$(VENV_BIN)/python -m src.jira_lite.app --port $(PORT) --auto
+
+# MCP Command Analytics
+optimize: bootstrap-mcp ## Analyze MCP command usage and get optimization recommendations
+	@echo "📊 Analyzing MCP Command Usage..."
+	cd mcp && venv/bin/python ../scripts/analyze_command_usage.py
+
+analyze-usage: optimize ## Alias for optimize - analyze command usage

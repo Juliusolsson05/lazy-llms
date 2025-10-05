@@ -1,6 +1,6 @@
 """Database connection and repository layer for PM MCP Server - NO RAW SQL"""
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 from peewee import *
@@ -204,6 +204,12 @@ class WorkLog(BaseModel):
         except (json.JSONDecodeError, TypeError):
             return {}
 
+class CommandUsage(BaseModel):
+    """CommandUsage model for tracking MCP command usage"""
+    command_name = CharField(index=True, max_length=100)
+    timestamp_utc = DateTimeField(index=True)
+    project_id = CharField(null=True, index=True, max_length=64)
+
 class PMDatabase:
     """Database operations wrapper with proper Peewee usage - NO RAW SQL"""
 
@@ -293,7 +299,7 @@ class PMDatabase:
         db_proxy.initialize(database)
 
         # Create tables if needed
-        database.create_tables([Project, Issue, Task, WorkLog], safe=True)
+        database.create_tables([Project, Issue, Task, WorkLog, CommandUsage], safe=True)
         cls._db_initialized = True
 
     @classmethod
@@ -928,6 +934,40 @@ class PMDatabase:
         for r in rows:
             result.append({"owner": r.owner, "issue_count": r.count})
         return result
+
+    @classmethod
+    def log_command_usage(cls, command_name: str, project_id: Optional[str] = None):
+        """Log MCP command usage for analytics"""
+        try:
+            CommandUsage.create(
+                command_name=command_name,
+                timestamp_utc=datetime.utcnow(),
+                project_id=project_id
+            )
+        except Exception:
+            pass
+
+    @classmethod
+    def get_command_usage_stats(cls, days: int = 30) -> List[Dict[str, Any]]:
+        """Get command usage statistics for the last N days"""
+        cutoff = datetime.utcnow() - timedelta(days=days)
+
+        usage = (CommandUsage
+                .select(CommandUsage.command_name,
+                       fn.COUNT(CommandUsage.id).alias('count'),
+                       fn.MAX(CommandUsage.timestamp_utc).alias('last_used'))
+                .where(CommandUsage.timestamp_utc >= cutoff)
+                .group_by(CommandUsage.command_name)
+                .order_by(fn.COUNT(CommandUsage.id).desc()))
+
+        results = []
+        for u in usage:
+            results.append({
+                'command_name': u.command_name,
+                'count': u.count,
+                'last_used': u.last_used.isoformat() + 'Z' if u.last_used else None
+            })
+        return results
 
     @classmethod
     def generate_issue_key(cls, project_slug: str) -> str:

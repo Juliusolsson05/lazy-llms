@@ -1,0 +1,7 @@
+networks:
+  default:
+    name: dev-lazy-llms-net
+services:
+  jira-lite:
+    ports:
+      - "9000:1929"

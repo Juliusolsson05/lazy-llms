@@ -35,6 +35,54 @@ mcp = FastMCP("pm-server")
 # Ensure database is initialized
 PMDatabase.initialize()
 
+# =============== Command Configuration and Analytics ===============
+
+def load_command_config() -> Dict[str, Any]:
+    """Load MCP command configuration"""
+    config_path = Path(__file__).parent.parent / "mcp_commands.json"
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"commands": {}}
+
+COMMAND_CONFIG = load_command_config()
+
+def is_command_enabled(command_name: str) -> bool:
+    """Check if a command is enabled in configuration"""
+    cmd_config = COMMAND_CONFIG.get("commands", {}).get(command_name, {})
+    return cmd_config.get("enabled", True)
+
+def log_command_usage_decorator(func):
+    """Decorator to log MCP command usage for analytics and enforce command filtering"""
+    command_name = func.__name__
+
+    def wrapper(*args, **kwargs):
+        if not is_command_enabled(command_name):
+            return err(
+                f"Command '{command_name}' is disabled",
+                {"reason": "Command disabled in mcp_commands.json configuration"},
+                ["Edit mcp/mcp_commands.json to enable this command"]
+            )
+
+        try:
+            with DatabaseSession():
+                project_id = None
+                if args and hasattr(args[0], 'project_id'):
+                    project_id = getattr(args[0], 'project_id', None)
+
+                PMDatabase.log_command_usage(command_name, project_id)
+        except Exception:
+            pass
+
+        return func(*args, **kwargs)
+
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    return wrapper
+
 # =============== Helper Functions ===============
 
 def _is_global_mode() -> bool:
@@ -176,6 +224,7 @@ def standard_response(success: bool, message: str, data: Optional[Dict[str, Any]
 # =============== Discovery Tools ===============
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
     """
     Get comprehensive PM system documentation and workflow guidance.
@@ -196,6 +245,7 @@ def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_workflow(input: PMWorkflowInput) -> Dict[str, Any]:
     """
     Get methodology and best practices for PM-driven development.
@@ -427,6 +477,7 @@ def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
     """
     Full-text search across all issue content.
@@ -471,6 +522,7 @@ def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_list_projects() -> Dict[str, Any]:
     """
     List all available projects in the system.
@@ -1203,6 +1255,7 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_commit(input: CommitInput) -> Dict[str, Any]:
     """
     Create a git commit with PM trailers and issue context.
@@ -1448,6 +1501,7 @@ def pm_my_queue(input: MyQueueInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_blocked_issues(input: BlockedIssuesInput) -> Dict[str, Any]:
     """
     Find and analyze blocked issues with unblocking recommendations.
@@ -1761,6 +1815,7 @@ def main():
 # =============== Initialization Tools ===============
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_init_project(project_path: str = ".", project_name: Optional[str] = None, auto_mode: bool = False) -> Dict[str, Any]:
     """
     Initialize a new project for PM tracking. Scans directory structure,
@@ -1855,6 +1910,7 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None,
 
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_register_project(server_url: str = "http://127.0.0.1:1929",
                        project_id: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -2187,6 +2243,7 @@ def pm_list_submodules(input: ListSubmodulesInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
     """Add effort and complexity estimates to an issue with detailed reasoning"""
     try:
@@ -2216,6 +2273,7 @@ def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
     """Create a task within an issue for work breakdown"""
     try:
@@ -2245,6 +2303,7 @@ def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
     """Update task status, title, assignee, or details"""
     try:
@@ -2271,6 +2330,7 @@ def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
     """Enhanced git status with issue context"""
     try:
@@ -2311,6 +2371,7 @@ def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> Dict[str, Any]:
     """Push current branch to remote"""
     try:
@@ -2344,6 +2405,7 @@ def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> 
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
     """Get comprehensive project dashboard with metrics"""
     try:
@@ -2374,6 +2436,7 @@ def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
         )
 
 @mcp.tool()
+@log_command_usage_decorator
 def pm_reminder() -> Dict[str, Any]:
     """
     Get helpful reminders about using the PM system properly.
