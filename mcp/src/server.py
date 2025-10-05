@@ -207,8 +207,7 @@ def standard_response(success: bool, message: str, data: Optional[Dict[str, Any]
 
 # =============== Discovery Tools ===============
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
     """
     Get comprehensive PM system documentation and workflow guidance.
@@ -228,8 +227,7 @@ def pm_docs(input: PMDocsInput) -> Dict[str, Any]:
             hints=["Check system configuration"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_workflow(input: PMWorkflowInput) -> Dict[str, Any]:
     """
     Get methodology and best practices for PM-driven development.
@@ -249,8 +247,7 @@ def pm_workflow(input: PMWorkflowInput) -> Dict[str, Any]:
             hints=["Check system configuration"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_status(input: PMStatusInput) -> Dict[str, Any]:
     """
@@ -321,8 +318,7 @@ def pm_status(input: PMStatusInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify project exists"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
     """
@@ -363,8 +359,7 @@ def pm_list_issues(input: ListIssuesInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify project exists"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
     """
@@ -463,8 +458,7 @@ def pm_get_issue(input: GetIssueInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify issue key format"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
     """
     Full-text search across all issue content.
@@ -508,8 +502,7 @@ def pm_search_issues(input: SearchIssuesInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Try simpler search terms"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_list_projects() -> Dict[str, Any]:
     """
     List all available projects in the system.
@@ -551,8 +544,7 @@ def pm_list_projects() -> Dict[str, Any]:
             hints=["Check database connectivity", "Ensure database is initialized"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_list_archived_issues(input: ListArchivedIssuesInput) -> Dict[str, Any]:
     """
@@ -611,8 +603,7 @@ def pm_list_archived_issues(input: ListArchivedIssuesInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify filters are valid"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_get_archived_issue(input: GetArchivedIssueInput) -> Dict[str, Any]:
     """
@@ -686,8 +677,7 @@ def pm_get_archived_issue(input: GetArchivedIssueInput) -> Dict[str, Any]:
 
 # =============== Planning Tools ===============
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
     """
@@ -716,8 +706,7 @@ def pm_create_issue(input: CreateIssueInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify all required fields are provided"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
     """
@@ -827,8 +816,7 @@ def pm_start_work(input: StartWorkInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify issue is in startable state"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
     """
@@ -896,8 +884,7 @@ def pm_log_work(input: LogWorkInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify time format (e.g., '2h', '30m')"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_update_status(input: UpdateStatusInput) -> Dict[str, Any]:
     """
@@ -1006,8 +993,7 @@ def pm_update_status(input: UpdateStatusInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify status transition is valid"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_delete_issue(input: DeleteIssueInput) -> Dict[str, Any]:
     """
@@ -1104,8 +1090,7 @@ def pm_delete_issue(input: DeleteIssueInput) -> Dict[str, Any]:
 
 # =============== Git Integration Tools ===============
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
     """
@@ -1249,8 +1234,7 @@ def pm_create_branch(input: CreateBranchInput) -> Dict[str, Any]:
             hints=["Check git repository status", "Verify project path exists"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_commit(input: CommitInput) -> Dict[str, Any]:
     """
     Create a git commit with PM trailers and issue context.
@@ -1391,8 +1375,7 @@ def pm_commit(input: CommitInput) -> Dict[str, Any]:
 
 # =============== Analytics Tools ===============
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_my_queue(input: MyQueueInput) -> Dict[str, Any]:
     """
@@ -1496,8 +1479,7 @@ def pm_my_queue(input: MyQueueInput) -> Dict[str, Any]:
             hints=["Check database connectivity"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_blocked_issues(input: BlockedIssuesInput) -> Dict[str, Any]:
     """
     Find and analyze blocked issues with unblocking recommendations.
@@ -1588,8 +1570,7 @@ def pm_blocked_issues(input: BlockedIssuesInput) -> Dict[str, Any]:
 
 # =============== Workflow Tools ===============
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_daily_standup(input: DailyStandupInput) -> Dict[str, Any]:
     """
@@ -1811,8 +1792,7 @@ def main():
 
 # =============== Initialization Tools ===============
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_init_project(project_path: str = ".", project_name: Optional[str] = None, auto_mode: bool = False) -> Dict[str, Any]:
     """
     Initialize a new project for PM tracking. Scans directory structure,
@@ -1906,8 +1886,7 @@ def pm_init_project(project_path: str = ".", project_name: Optional[str] = None,
         )
 
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_register_project(server_url: str = "http://127.0.0.1:1929",
                        project_id: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -2005,8 +1984,7 @@ def pm_register_project(server_url: str = "http://127.0.0.1:1929",
 
 # =============== Critical Missing Tools ===============
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_add_submodule(input: AddSubmoduleInput) -> Dict[str, Any]:
     """
@@ -2082,8 +2060,7 @@ def pm_add_submodule(input: AddSubmoduleInput) -> Dict[str, Any]:
             data={"error_details": {"error": str(e), "traceback": tb}}
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_remove_submodule(input: RemoveSubmoduleInput) -> Dict[str, Any]:
     """
@@ -2156,8 +2133,7 @@ def pm_remove_submodule(input: RemoveSubmoduleInput) -> Dict[str, Any]:
             data={"error_details": {"error": str(e), "traceback": tb}}
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 @strict_project_scope
 def pm_list_submodules(input: ListSubmodulesInput) -> Dict[str, Any]:
     """
@@ -2242,8 +2218,7 @@ def pm_list_submodules(input: ListSubmodulesInput) -> Dict[str, Any]:
             data={"error_details": {"error": str(e), "traceback": tb}}
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
     """Add effort and complexity estimates to an issue with detailed reasoning"""
     try:
@@ -2272,8 +2247,7 @@ def pm_estimate(input: EstimateIssueInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify estimate format (e.g., '2-3 days', '1 week')"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
     """Create a task within an issue for work breakdown"""
     try:
@@ -2302,8 +2276,7 @@ def pm_create_task(input: CreateTaskInput) -> Dict[str, Any]:
             hints=["Check issue exists", "Verify task doesn't already exist"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
     """Update task status, title, assignee, or details"""
     try:
@@ -2329,8 +2302,7 @@ def pm_update_task(input: UpdateTaskInput) -> Dict[str, Any]:
             hints=["Check task exists", "Verify status is valid (todo, doing, blocked, review, done)"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
     """Enhanced git status with issue context"""
     try:
@@ -2370,8 +2342,7 @@ def pm_git_status(project_id: Optional[str] = None) -> Dict[str, Any]:
             hints=["Check if you're in a git repository", "Verify git is installed"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> Dict[str, Any]:
     """Push current branch to remote"""
     try:
@@ -2404,8 +2375,7 @@ def pm_push_branch(project_id: Optional[str] = None, remote: str = "origin") -> 
             hints=["Check remote exists", "Verify git credentials are configured"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
     """Get comprehensive project dashboard with metrics"""
     try:
@@ -2435,8 +2405,7 @@ def pm_project_dashboard(input: ProjectDashboardInput) -> Dict[str, Any]:
             hints=["Check database connectivity", "Verify project exists"]
         )
 
-@mcp.tool()
-@log_command_usage_decorator
+@conditional_mcp_tool
 def pm_reminder() -> Dict[str, Any]:
     """
     Get helpful reminders about using the PM system properly.
